@@ -1382,10 +1382,65 @@ async function handleQuestionOnPage() {
   }
 
   const question = input.value.trim();
+  const questionLower = question.toLowerCase();
   
   if (!question) {
-    resultDiv.textContent = "❗ Please enter a question.";
+    resultDiv.textContent = "❗ Please enter a command or question.";
     resultDiv.style.display = "block";
+    return;
+  }
+
+  // ✅ Detect "open" commands
+  if (questionLower.startsWith("open ") || questionLower.startsWith("go to ")) {
+    let site = questionLower.replace(/^(open |go to )/, "").trim();
+
+    // Site alias map for common sites
+    const knownSites = {
+      youtube: "https://www.youtube.com",
+      linkedin: "https://www.linkedin.com",
+      wikipedia: "https://en.wikipedia.org",
+      twitter: "https://x.com",
+      github: "https://github.com",
+      google: "https://google.com",
+      facebook: "https://facebook.com",
+      instagram: "https://instagram.com",
+      reddit: "https://reddit.com",
+      stackoverflow: "https://stackoverflow.com",
+      amazon: "https://amazon.com",
+      netflix: "https://netflix.com"
+    };
+
+    // Check if it's a known site alias
+    if (knownSites[site]) {
+      site = knownSites[site];
+    } else {
+      // Add https:// if missing
+      if (!site.startsWith("http")) {
+        // If user types "youtube.com" or "linkedin", normalize it
+        if (!site.includes(".")) {
+          site = `${site}.com`;
+        }
+        site = `https://${site}`;
+      }
+    }
+
+    resultDiv.textContent = `🌐 Opening ${site}...`;
+    resultDiv.style.display = "block";
+    
+    // Send message to background to open the site
+    chrome.runtime.sendMessage({ type: "OPEN_SITE", url: site }, (response) => {
+      if (chrome.runtime.lastError) {
+        resultDiv.textContent = "❌ Failed to open site: " + chrome.runtime.lastError.message;
+      } else {
+        resultDiv.textContent = `✅ Opened ${site} in new tab`;
+        // Clear input after successful command
+        input.value = '';
+        
+        // Add to conversation history
+        addMessage('user', question);
+        addMessage('ai', `🌐 Opened ${site} in a new tab`, FIXED_MODEL);
+      }
+    });
     return;
   }
 
