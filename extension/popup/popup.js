@@ -908,6 +908,33 @@ async function saveToMemory(userMessage, botResponse, context, model) {
   }
 }
 
+/**
+ * Add generic item to memory (simplified version)
+ */
+async function addToMemory(item) {
+  try {
+    const memory = await getMemory();
+    
+    const memoryItem = {
+      id: Date.now(),
+      timestamp: item.timestamp || new Date().toISOString(),
+      type: item.type || 'generic',
+      title: item.title || 'Memory Item',
+      content: item.content || '',
+      url: item.url || null
+    };
+    
+    memory.unshift(memoryItem);
+    const trimmedMemory = memory.slice(0, MAX_MEMORY_ITEMS);
+    
+    await chrome.storage.local.set({ [MEMORY_KEY]: trimmedMemory });
+    console.log('Item added to memory:', memoryItem.id);
+    
+  } catch (error) {
+    console.error('Error adding to memory:', error);
+  }
+}
+
 async function clearAllMemory() {
   try {
     await chrome.storage.local.remove(MEMORY_KEY);
@@ -1208,15 +1235,20 @@ Please summarize the main points, key information, and overall theme of this con
         addMessage('ai', `📄 **Page Summary**\n\n${summary}`, FIXED_MODEL);
         
         // Store in memory with page info
-        await addToMemory({
-          title: `Summary: ${pageData.title}`,
-          content: summary,
-          url: pageData.url,
-          timestamp: new Date().toISOString(),
-          type: 'summary'
-        });
+        try {
+          await addToMemory({
+            title: `Summary: ${pageData.title}`,
+            content: summary,
+            url: pageData.url,
+            timestamp: new Date().toISOString(),
+            type: 'summary'
+          });
+          updateMemoryBadge();
+        } catch (memoryError) {
+          console.warn('Failed to save to memory:', memoryError);
+        }
         
-        updateMemoryBadge();
+        // Save conversation
         saveConversation();
       } else {
         throw new Error(response.error || 'Invalid response from AI service');
