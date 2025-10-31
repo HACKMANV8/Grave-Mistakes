@@ -1,0 +1,3 @@
+# Note: Copy the logo from website/client/src/assets/v.png
+# Create icon16.png, icon48.png, and icon128.png by resizing the logo
+# For now, this .gitkeep file ensures the assets folder is tracked by git
