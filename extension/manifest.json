@@ -34,9 +34,6 @@
     "tabs",
     "webNavigation"
   ],
-  "optional_permissions": [
-    "audioCapture"
-  ],
   "host_permissions": [
     "<all_urls>",
     "https://api.vynceai.com/*",
