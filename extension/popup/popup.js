@@ -392,9 +392,11 @@ function initVoiceRecognition() {
   
   recognition.onstart = () => {
     isListening = true;
+    voiceBtn.classList.remove('requesting');
     voiceBtn.classList.add('listening');
     voiceIndicator.style.display = 'flex';
     voiceBtn.title = 'Stop listening (click or speak)';
+    voiceStatusText.textContent = 'Listening...';
     updateStatus('listening');
   };
   
@@ -417,8 +419,9 @@ function initVoiceRecognition() {
     }, 500);
     
     // Auto-send after a short delay (optional - you can remove this)
-    // Uncomment the line below to auto-send voice messages
-    // setTimeout(() => handleSendMessage(), 500);
+    // Auto-send voice messages after recognition
+    showInfo('🎤 Voice message captured! Sending in 0.5 seconds...');
+    setTimeout(() => handleSendMessage(), 500);
   };
   
   recognition.onerror = (event) => {
@@ -444,7 +447,7 @@ function initVoiceRecognition() {
 /**
  * Toggle voice recognition on/off
  */
-async function toggleVoiceRecognition() {
+function toggleVoiceRecognition() {
   if (!recognition) {
     showError('Voice recognition not available in this browser');
     return;
@@ -456,72 +459,33 @@ async function toggleVoiceRecognition() {
   }
   
   try {
-    // Show requesting permission state
+    // Show listening state immediately
     voiceBtn.classList.add('requesting');
     voiceIndicator.style.display = 'flex';
-    voiceStatusText.textContent = 'Requesting microphone permission...';
-    console.log('Requesting microphone permission...');
+    voiceStatusText.textContent = 'Click "Allow" in browser popup if prompted...';
+    console.log('Starting voice recognition...');
     
-    // First, request the optional permission from Chrome
-    const permissionGranted = await chrome.permissions.request({
-      permissions: ['audioCapture']
-    });
-    
-    if (!permissionGranted) {
-      throw new Error('Permission request was dismissed or denied');
-    }
-    
-    console.log('Chrome permission granted, requesting media access...');
-    voiceStatusText.textContent = 'Click "Allow" in browser popup...';
-    
-    // Now request microphone access from the browser
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-    
-    // Permission granted! Stop the test stream
-    stream.getTracks().forEach(track => track.stop());
-    
-    console.log('Microphone access granted, starting recognition...');
-    
-    // Update UI
-    voiceBtn.classList.remove('requesting');
-    voiceStatusText.textContent = 'Listening...';
-    
-    // Small delay to ensure cleanup, then start voice recognition
-    setTimeout(() => {
-      try {
-        recognition.start();
-      } catch (err) {
-        console.error('Recognition start error:', err);
-        stopVoiceRecognition();
-        if (!err.message.includes('already started')) {
-          showError('🎤 Could not start voice recognition. Please try again.');
-        }
-      }
-    }, 100);
+    // Let Web Speech API handle permissions naturally
+    recognition.start();
     
   } catch (error) {
-    console.error('Microphone permission error:', error);
+    console.error('Voice recognition error:', error);
     
     // Hide indicator and remove requesting state
     voiceIndicator.style.display = 'none';
     voiceBtn.classList.remove('requesting');
     
-    if (error.message.includes('dismissed') || error.message.includes('denied')) {
-      showError('🎤 Please click "Allow" when the permission popup appears to use voice input.');
-    } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      showError('🎤 Microphone access denied. Please reload the extension and click "Allow" when prompted.');
-    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+    if (error.name === 'NotAllowedError') {
+      showError('🎤 Microphone access denied. Please click "Allow" when the browser prompts for microphone access.');
+    } else if (error.name === 'NotFoundError') {
       showError('🎤 No microphone found. Please connect a microphone and try again.');
     } else if (error.name === 'NotReadableError') {
       showError('🎤 Microphone is already in use by another application.');
+    } else if (error.message.includes('already started')) {
+      // Ignore this error - recognition is already running
+      console.log('Recognition already started, ignoring error');
     } else {
-      showError('🎤 Could not access microphone. Please try again.');
+      showError('🎤 Could not start voice recognition. Please try again.');
     }
   }
 }
