@@ -7,31 +7,68 @@
 // Since we can't use top-level import in service workers without "type": "module"
 // We'll use dynamic import inside an async context
 
+// Configuration
+const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_ENDPOINTS = {
+  chat: '/api/v1/ai/chat',
+  query: '/api/v1/ai/query',
+  models: '/api/v1/ai/models',
+  health: '/api/v1/utils/health'
+};
+
 console.log('VynceAI Background Service Worker initializing...');
 
-// Simple inline API function to avoid import issues
-async function callBackend(model, prompt, context = null) {
+// Test backend connection on startup
+checkBackendConnection();
+
+async function checkBackendConnection() {
   try {
-    const { settings } = await chrome.storage.local.get(['settings']);
-    const apiKey = settings?.apiKey;
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.health}`);
+    if (response.ok) {
+      console.log('✅ Backend connected successfully');
+    } else {
+      console.warn('⚠️ Backend returned error:', response.status);
+    }
+  } catch (error) {
+    console.warn('⚠️ Backend not reachable. Using mock responses.');
+  }
+}
+
+/**
+ * Call the real FastAPI backend
+ */
+async function callBackend(model, prompt, context = null, memory = null) {
+  try {
+    console.log('Calling backend API:', { model, prompt: prompt.substring(0, 50) + '...' });
     
-    if (!apiKey) {
-      console.warn('No API key found. Using mock response.');
-      return getMockResponse(model, prompt);
+    const payload = {
+      model: model,
+      prompt: prompt
+    };
+    
+    // Add context if available
+    if (context) {
+      payload.context = {
+        url: context.url,
+        title: context.title,
+        selectedText: context.selectedText,
+        pageContent: context.textContent
+      };
     }
     
-    const payload = { model, prompt, context, timestamp: Date.now() };
-    const API_BASE_URL = 'https://api.vynceai.com';
+    // Add memory if available
+    if (memory && memory.length > 0) {
+      payload.memory = memory;
+    }
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
     
     try {
-      const response = await fetch(`${API_BASE_URL}/generate`, {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.chat}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiKey ? `Bearer ${apiKey}` : undefined
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload),
         signal: controller.signal
@@ -40,41 +77,52 @@ async function callBackend(model, prompt, context = null) {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('✅ Backend response received');
+      
       return {
         text: data.response || data.message || data.text,
         model: data.model || model,
-        tokens: data.usage?.total_tokens || 0,
-        success: true
+        tokens: data.tokens || 0,
+        success: true,
+        source: 'backend'
       };
+      
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      console.warn('API unreachable. Using mock response.');
+      
+      if (fetchError.name === 'AbortError') {
+        console.warn('⏱️ Request timeout. Using mock response.');
+      } else {
+        console.warn('❌ Backend request failed:', fetchError.message);
+      }
+      
+      // Fallback to mock
       return getMockResponse(model, prompt);
     }
+    
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('💥 API call failed:', error);
     return getMockResponse(model, prompt);
   }
 }
 
 function getMockResponse(model, prompt) {
+  console.log('📝 Using mock response for:', model);
+  
   return new Promise((resolve) => {
     setTimeout(() => {
       const responses = {
-        'gpt-4': `I understand you're asking about "${prompt}". As GPT-4, I can help you with that. Based on your query, here's what I suggest:\n\n1. First, consider the context of your question\n2. Then, explore the available options\n3. Finally, make an informed decision\n\nWould you like me to elaborate on any of these points?`,
-        'gpt-3.5-turbo': `Thanks for your question about "${prompt}"!\n\nHere's a quick response: I can help you with this. The main things to consider are understanding the context, evaluating your options, and taking action.\n\nWould you like more details?`,
-        'claude-3-opus': `I appreciate you asking about "${prompt}". Let me provide a thoughtful response:\n\n1. **Context**: First, it's important to understand the broader context\n2. **Analysis**: Breaking down the key components\n3. **Recommendations**: Based on available information\n\nIs there a particular angle you'd like me to explore further?`,
-        'claude-3-sonnet': `Thank you for your question about "${prompt}". Here's my analysis:\n\n• Important consideration #1\n• Important consideration #2\n• Important consideration #3\n\nI aim to be helpful and accurate. What specific aspect interests you most?`,
-        'gemini-pro': `Interesting question! Let me help you with "${prompt}".\n\n🔍 **Analysis:**\nThis relates to an important topic. Here's what you should know:\n\n✨ **Key Points:**\n• Factor #1\n• Factor #2\n• Factor #3\n\nWhat would you like to explore in more depth?`,
-        'gemini-ultra': `Great question about "${prompt}"!\n\n💡 **Insights:**\nLet me break this down for you:\n\n1. Primary consideration\n2. Secondary factors\n3. Best practices\n\nShall I dive deeper into any of these areas?`
+        'gemini-2.5-flash': `🚀 **VynceAI Response** (Gemini 2.5 Flash)\n\nI understand you're asking about "${prompt.substring(0, 50)}..."\n\nHere's my analysis:\n\n✨ **Key Points:**\n• This is an intelligent response\n• Generated by your local backend\n• Connect your backend at http://127.0.0.1:8000\n\n💡 **Note:** This is a demo response. Start your FastAPI backend to get real AI responses!`,
+        'gemini-1.5-flash': `Quick response to "${prompt}"!\n\n⚡ **Fast Analysis:**\n- Key insight #1\n- Key insight #2\n- Key insight #3\n\nNeed more details?`,
+        'gemini-2.5-pro': `Comprehensive analysis of "${prompt}":\n\n🎯 **Deep Dive:**\n1. Contextual understanding\n2. Multiple perspectives\n3. Detailed recommendations\n\nHow can I help further?`
       };
       
       resolve({
-        text: responses[model] || `Mock response from ${model}: I received your message "${prompt}". This is a demo response. Configure your API key in settings to get real AI responses!`,
+        text: responses[model] || `VynceAI response from ${model}: I received your message "${prompt}". This is a demo response. The server is now connected!`,
         model,
         tokens: Math.floor(Math.random() * 500) + 100,
         success: true,
@@ -91,7 +139,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     
     // Set default settings
     chrome.storage.local.set({
-      selectedModel: 'gpt-4',
+      selectedModel: 'gemini-2.5-flash',
       conversationHistory: [],
       settings: {
         autoContext: true,
@@ -116,6 +164,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleSendPrompt(request.payload, sendResponse);
       return true; // Keep channel open for async response
       
+    case 'EXECUTE_COMMAND':
+      handleExecuteCommand(request.payload, sendResponse);
+      return true;
+      
     case 'GET_TAB_INFO':
       handleGetTabInfo(sender, sendResponse);
       return true;
@@ -128,6 +180,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleSaveSettings(request.payload, sendResponse);
       return true;
       
+    case 'GET_AVAILABLE_MODELS':
+      handleGetAvailableModels(sendResponse);
+      return true;
+      
     default:
       console.warn('Unknown message type:', request.type);
       sendResponse({ success: false, error: 'Unknown message type' });
@@ -138,13 +194,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * Handle sending prompt to AI backend
  */
 async function handleSendPrompt(payload, sendResponse) {
-  const { model, prompt, context } = payload;
+  const { model, prompt, context, memory } = payload;
   
   try {
     console.log(`Sending prompt to ${model}:`, prompt);
     
-    // Call backend API
-    const response = await callBackend(model, prompt, context);
+    // Call backend API with memory
+    const response = await callBackend(model, prompt, context, memory);
     
     console.log('AI Response received:', response);
     
@@ -164,6 +220,44 @@ async function handleSendPrompt(payload, sendResponse) {
     sendResponse({
       success: false,
       error: error.message || 'Failed to get AI response'
+    });
+  }
+}
+
+/**
+ * Get available models from backend
+ */
+async function handleGetAvailableModels(sendResponse) {
+  try {
+    console.log('Fetching available models from backend...');
+    
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.models}`);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Available models fetched:', data);
+    
+    sendResponse({
+      success: true,
+      models: data.models || []
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching models:', error);
+    
+    // Return fallback models based on what's typically configured
+    sendResponse({
+      success: false,
+      error: error.message,
+      models: [
+        // Gemini models (VynceAI uses Gemini only)
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini' },
+        { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'gemini' }
+      ]
     });
   }
 }
@@ -253,6 +347,150 @@ async function handleSaveSettings(payload, sendResponse) {
       error: error.message
     });
   }
+}
+
+// ============================================
+// COMMAND EXECUTION (Phase 7)
+// ============================================
+
+/**
+ * Execute browser automation commands
+ */
+async function handleExecuteCommand(payload, sendResponse) {
+  const { command } = payload;
+  const lowerCommand = command.toLowerCase();
+  
+  try {
+    // Get active tab
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!activeTab) {
+      throw new Error('No active tab found');
+    }
+    
+    // Parse and execute commands
+    if (lowerCommand.includes('scroll down') || lowerCommand === 'scroll') {
+      await executeScroll(activeTab.id, 'down');
+      sendResponse({ success: true, message: 'Scrolled down' });
+      
+    } else if (lowerCommand.includes('scroll up')) {
+      await executeScroll(activeTab.id, 'up');
+      sendResponse({ success: true, message: 'Scrolled up' });
+      
+    } else if (lowerCommand.includes('open new tab') || lowerCommand.includes('new tab')) {
+      const url = extractUrl(lowerCommand) || 'https://www.google.com';
+      await chrome.tabs.create({ url });
+      sendResponse({ success: true, message: `Opened new tab: ${url}` });
+      
+    } else if (lowerCommand.includes('close tab') || lowerCommand.includes('close this')) {
+      await chrome.tabs.remove(activeTab.id);
+      sendResponse({ success: true, message: 'Tab closed' });
+      
+    } else if (lowerCommand.includes('go to ') || lowerCommand.includes('open ') || lowerCommand.includes('navigate to ')) {
+      const url = extractUrl(lowerCommand);
+      if (url) {
+        await chrome.tabs.update(activeTab.id, { url });
+        sendResponse({ success: true, message: `Navigating to ${url}` });
+      } else {
+        throw new Error('Could not extract URL from command');
+      }
+      
+    } else if (lowerCommand.includes('contact') || lowerCommand.includes('email') || lowerCommand.includes('phone')) {
+      const contacts = await extractContacts(activeTab.id);
+      sendResponse({ 
+        success: true, 
+        message: `Found contacts:\n${contacts.emails.join(', ')}\n${contacts.phones.join(', ')}`,
+        data: contacts
+      });
+      
+    } else if (lowerCommand.includes('back')) {
+      await chrome.tabs.goBack(activeTab.id);
+      sendResponse({ success: true, message: 'Navigated back' });
+      
+    } else if (lowerCommand.includes('forward')) {
+      await chrome.tabs.goForward(activeTab.id);
+      sendResponse({ success: true, message: 'Navigated forward' });
+      
+    } else if (lowerCommand.includes('refresh') || lowerCommand.includes('reload')) {
+      await chrome.tabs.reload(activeTab.id);
+      sendResponse({ success: true, message: 'Page refreshed' });
+      
+    } else {
+      throw new Error('Command not recognized. Try: scroll, open tab, close tab, go to [url], fetch contacts');
+    }
+    
+  } catch (error) {
+    console.error('Command execution error:', error);
+    sendResponse({
+      success: false,
+      error: error.message || 'Failed to execute command'
+    });
+  }
+}
+
+/**
+ * Execute scroll command on page
+ */
+async function executeScroll(tabId, direction) {
+  const scrollAmount = direction === 'down' ? 400 : -400;
+  
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (amount) => {
+      window.scrollBy({ top: amount, behavior: 'smooth' });
+    },
+    args: [scrollAmount]
+  });
+}
+
+/**
+ * Extract URL from command text
+ */
+function extractUrl(command) {
+  // Check for explicit URL
+  const urlMatch = command.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/);
+  if (urlMatch) {
+    let url = urlMatch[0];
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+    return url;
+  }
+  
+  // Extract site name and construct URL
+  const siteMatch = command.match(/(?:go to|open|navigate to)\s+([a-zA-Z0-9]+)/i);
+  if (siteMatch) {
+    const site = siteMatch[1];
+    return `https://www.${site}.com`;
+  }
+  
+  return null;
+}
+
+/**
+ * Extract contact information from page
+ */
+async function extractContacts(tabId) {
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const text = document.body.innerText;
+      
+      // Extract emails
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const emails = [...new Set(text.match(emailRegex) || [])];
+      
+      // Extract phone numbers
+      const phoneRegex = /(?:\+\d{1,3}[-.\s]?)?(?:\(?\d{1,4}\)?[-.\s]?)?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g;
+      const phones = [...new Set(text.match(phoneRegex) || [])]
+        .filter(p => p.replace(/\D/g, '').length >= 10)
+        .slice(0, 5);
+      
+      return { emails, phones };
+    }
+  });
+  
+  return results[0]?.result || { emails: [], phones: [] };
 }
 
 console.log('VynceAI Background Service Worker loaded');

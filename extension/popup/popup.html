@@ -17,28 +17,47 @@
           <p class="subtitle">Your AI Web Assistant</p>
         </div>
       </div>
-      <div class="status-indicator">
+      <div class="status-indicator" style="display: none;">
         <span class="status-dot"></span>
         <span class="status-text">Ready</span>
       </div>
     </header>
 
-    <!-- Model Selection -->
-    <div class="model-section">
-      <label for="model-select" class="model-label">
-        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-        </svg>
-        AI Model
-      </label>
-      <select id="model-select" class="model-select">
-        <option value="gpt-4">GPT-4 (OpenAI)</option>
-        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
-        <option value="claude-3-opus">Claude 3 Opus (Anthropic)</option>
-        <option value="claude-3-sonnet">Claude 3 Sonnet (Anthropic)</option>
-        <option value="gemini-pro">Gemini Pro (Google)</option>
-        <option value="gemini-ultra">Gemini Ultra (Google)</option>
-      </select>
+    <!-- Model Selection - Hidden, using fixed Gemini model -->
+    <div class="model-section" style="display: none;">
+      <div class="model-header">
+        <select id="model-select" class="model-select">
+          <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+        </select>
+      </div>
+      
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button id="chat-mode-btn" class="mode-btn active">
+          <svg class="mode-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+          </svg>
+          Chat Mode
+        </button>
+        <button id="command-mode-btn" class="mode-btn">
+          <svg class="mode-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          Command Mode
+        </button>
+      </div>
+    </div>
+
+    <!-- Memory Section (Hidden by default) -->
+    <div class="memory-section" id="memory-section" style="display: none;">
+      <div class="memory-header">
+        <h3>💭 Recent Memory</h3>
+        <button id="close-memory-btn" class="icon-btn" title="Close Memory">✕</button>
+      </div>
+      <div class="memory-list" id="memory-list">
+        <!-- Memory items will be dynamically added here -->
+      </div>
+      <div class="memory-stats" id="memory-stats"></div>
     </div>
 
     <!-- Chat Container -->
@@ -48,7 +67,12 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
         </svg>
         <h3>Welcome to VynceAI</h3>
-        <p>Ask me anything or let me help you automate tasks on this webpage.</p>
+        <p>Your intelligent AI browser assistant. Ask me anything about this webpage or let me help you with web tasks!</p>
+        <div class="welcome-tips">
+          <div class="tip">💬 Type your message</div>
+          <div class="tip">🎤 Click mic or press <kbd>Ctrl+Space</kbd> for voice</div>
+          <div class="tip">✨ I remember our conversation!</div>
+        </div>
       </div>
     </div>
 
@@ -61,11 +85,24 @@
           placeholder="Ask VynceAI anything..."
           rows="1"
         ></textarea>
+        <button id="voice-btn" class="voice-btn" title="Voice input">
+          <svg class="voice-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+          </svg>
+        </button>
         <button id="send-btn" class="send-btn" title="Send message">
           <svg class="send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
           </svg>
         </button>
+      </div>
+      <div class="voice-indicator" id="voice-indicator" style="display: none;">
+        <div class="listening-animation">
+          <span class="pulse"></span>
+          <span class="pulse"></span>
+          <span class="pulse"></span>
+        </div>
+        <span class="listening-text" id="voice-status-text">Listening...</span>
       </div>
       <div class="actions">
         <button id="clear-btn" class="action-btn" title="Clear conversation">
@@ -88,3 +125,4 @@
   <script src="popup.js" type="module"></script>
 </body>
 </html>
+

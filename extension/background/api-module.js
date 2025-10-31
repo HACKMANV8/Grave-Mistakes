@@ -82,10 +82,15 @@ function getMockResponse(model, prompt) {
       const responses = {
         'gpt-4': `I understand you're asking about "${prompt}". As GPT-4, I can help you with that. This is a mock response for testing.`,
         'gpt-3.5-turbo': `Quick response to "${prompt}". This is a mock response for testing.`,
-        'claude-3-opus': `Thanks for asking about "${prompt}". This is a thoughtful mock response from Claude.`,
-        'claude-3-sonnet': `I appreciate your question about "${prompt}". This is a mock response from Claude Sonnet.`,
+        'gpt-4-turbo': `Fast and comprehensive response to "${prompt}". Mock response for testing.`,
         'gemini-pro': `Interesting! About "${prompt}" - this is a mock response from Gemini Pro.`,
-        'gemini-ultra': `Great question about "${prompt}"! This is a mock response from Gemini Ultra.`
+        'gemini-1.5-flash': `Quick analysis of "${prompt}" - mock response from Gemini 1.5 Flash.`,
+        'gemini-1.5-pro': `Detailed response about "${prompt}" - mock from Gemini 1.5 Pro.`,
+        'llama-3.1-70b': `Thanks for asking about "${prompt}". Mock response from Llama 3.1 70B.`,
+        'llama-3.1-8b': `Quick response to "${prompt}". Mock from Llama 3.1 8B.`,
+        'mixtral-8x7b': `Expert analysis of "${prompt}". Mock response from Mixtral 8x7B.`,
+        'claude-3-opus': `Thanks for asking about "${prompt}". This is a thoughtful mock response from Claude.`,
+        'claude-3-sonnet': `I appreciate your question about "${prompt}". This is a mock response from Claude Sonnet.`
       };
       
       resolve({

@@ -1,4 +1,10 @@
+import { installExtension } from '../utils/downloadExtension';
+
 const CTA = () => {
+  const handleDownload = () => {
+    installExtension('chrome');
+  };
+
   return (
     <section id="download" className="py-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
@@ -17,7 +23,10 @@ const CTA = () => {
             </p>
 
             {/* CTA Button */}
-            <button className="px-10 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all duration-200 shadow-2xl">
+            <button 
+              onClick={handleDownload}
+              className="px-10 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all duration-200 shadow-2xl"
+            >
               Download for Free
             </button>
 

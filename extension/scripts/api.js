@@ -119,10 +119,15 @@ function getMockResponse(model, prompt) {
       const responses = {
         'gpt-4': generateGPT4Response(prompt),
         'gpt-3.5-turbo': generateGPT35Response(prompt),
-        'claude-3-opus': generateClaudeResponse(prompt),
-        'claude-3-sonnet': generateClaudeResponse(prompt),
+        'gpt-4-turbo': generateGPT4Response(prompt),
         'gemini-pro': generateGeminiResponse(prompt),
-        'gemini-ultra': generateGeminiResponse(prompt)
+        'gemini-1.5-flash': generateGeminiResponse(prompt),
+        'gemini-1.5-pro': generateGeminiResponse(prompt),
+        'llama-3.1-70b': generateLlamaResponse(prompt),
+        'llama-3.1-8b': generateLlamaResponse(prompt),
+        'mixtral-8x7b': generateLlamaResponse(prompt),
+        'claude-3-opus': generateClaudeResponse(prompt),
+        'claude-3-sonnet': generateClaudeResponse(prompt)
       };
       
       resolve({
@@ -159,17 +164,17 @@ function generateGPT35Response(prompt) {
 }
 
 /**
- * Generate mock Claude response
- */
-function generateClaudeResponse(prompt) {
-  return `I appreciate you asking about "${prompt}". Let me provide a thoughtful response:\n\nFrom my analysis, there are several important considerations here:\n\n1. **Context**: First, it's important to understand the broader context\n2. **Analysis**: Breaking down the key components\n3. **Recommendations**: Based on the information available\n\nI aim to be helpful, harmless, and honest in my responses. Is there a particular angle you'd like me to explore further?`;
-}
-
-/**
  * Generate mock Gemini response
  */
 function generateGeminiResponse(prompt) {
   return `Interesting question! Let me help you with "${prompt}".\n\n🔍 **Analysis:**\nBased on my understanding, this relates to [topic area]. Here's what I can tell you:\n\n✨ **Key Insights:**\n- Important factor #1\n- Important factor #2  \n- Important factor #3\n\n💡 **Suggestion:**\nI recommend approaching this systematically and considering all available options.\n\nWhat specific aspect would you like to explore in more depth?`;
+}
+
+/**
+ * Generate mock Llama response
+ */
+function generateLlamaResponse(prompt) {
+  return `Thanks for your question about "${prompt}"!\n\nAs Llama 3.1, I can provide detailed assistance:\n\n**Understanding:**\nYour question relates to an important topic. Here's what you need to know:\n\n**Key Points:**\n- Consideration #1\n- Consideration #2\n- Consideration #3\n\n**Recommendation:**\nBased on the information provided, I suggest taking a step-by-step approach.\n\nWould you like me to elaborate on any specific aspect?`;
 }
 
 /**
@@ -284,6 +289,13 @@ export async function getAvailableModels() {
 }
 
 /**
+ * Generate mock Claude response
+ */
+function generateClaudeResponse(prompt) {
+  return `I appreciate you asking about "${prompt}". Let me provide a thoughtful response:\n\nFrom my analysis, there are several important considerations here:\n\n1. **Context**: First, it's important to understand the broader context\n2. **Analysis**: Breaking down the key components\n3. **Recommendations**: Based on the information available\n\nI aim to be helpful, harmless, and honest in my responses. Is there a particular angle you'd like me to explore further?`;
+}
+
+/**
  * Get default AI models list
  * @returns {array} Default models
  */
@@ -291,9 +303,12 @@ function getDefaultModels() {
   return [
     { id: 'gpt-4', name: 'GPT-4 (OpenAI)', provider: 'openai' },
     { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo (OpenAI)', provider: 'openai' },
-    { id: 'claude-3-opus', name: 'Claude 3 Opus (Anthropic)', provider: 'anthropic' },
-    { id: 'claude-3-sonnet', name: 'Claude 3 Sonnet (Anthropic)', provider: 'anthropic' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo (OpenAI)', provider: 'openai' },
     { id: 'gemini-pro', name: 'Gemini Pro (Google)', provider: 'google' },
-    { id: 'gemini-ultra', name: 'Gemini Ultra (Google)', provider: 'google' }
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Google)', provider: 'google' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Google)', provider: 'google' },
+    { id: 'llama-3.1-70b', name: 'Llama 3.1 70B (Groq)', provider: 'groq' },
+    { id: 'llama-3.1-8b', name: 'Llama 3.1 8B (Groq)', provider: 'groq' },
+    { id: 'mixtral-8x7b', name: 'Mixtral 8x7B (Groq)', provider: 'groq' }
   ];
 }
