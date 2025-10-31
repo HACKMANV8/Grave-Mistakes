@@ -1390,8 +1390,8 @@ async function handleQuestionOnPage() {
     return;
   }
 
-  // ✅ Detect "open" commands
-  if (questionLower.startsWith("open ") || questionLower.startsWith("go to ")) {
+  // ✅ Detect "open" commands for new sites
+  if (questionLower.startsWith("open ") || (questionLower.startsWith("go to ") && !questionLower.includes("scroll") && !questionLower.includes("section") && !questionLower.includes("footer") && !questionLower.includes("top"))) {
     let site = questionLower.replace(/^(open |go to )/, "").trim();
 
     // Site alias map for common sites
@@ -1441,6 +1441,95 @@ async function handleQuestionOnPage() {
         addMessage('ai', `🌐 Opened ${site} in a new tab`, FIXED_MODEL);
       }
     });
+    return;
+  }
+
+  // ✅ Detect navigation commands within current page
+  if (
+    questionLower.includes("scroll") ||
+    questionLower.includes("footer") ||
+    questionLower.includes("top") ||
+    questionLower.includes("bottom") ||
+    questionLower.includes("section") ||
+    (questionLower.startsWith("go to ") && (questionLower.includes("footer") || questionLower.includes("top") || questionLower.includes("section"))) ||
+    (questionLower.startsWith("jump to ")) ||
+    (questionLower.includes("find ") && questionLower.includes("section"))
+  ) {
+    try {
+      const tabs = await new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
+      if (!tabs || !tabs[0]) throw new Error("No active tab found");
+      const tab = tabs[0];
+
+      // Check for restricted pages
+      const forbiddenPrefixes = ["chrome://", "chrome-extension://", "edge://", "about:"];
+      if (forbiddenPrefixes.some(p => tab.url && tab.url.startsWith(p))) {
+        resultDiv.textContent = "❌ Cannot navigate browser internal pages.";
+        resultDiv.style.display = "block";
+        return;
+      }
+
+      // Inject content script if needed
+      try {
+        await executeScriptAsync(tab.id, ["content/content.js", "content/page-reader.js"]);
+      } catch (injectErr) {
+        console.warn("Content script injection failed:", injectErr.message);
+      }
+
+      resultDiv.textContent = "🧭 Searching page...";
+      resultDiv.style.display = "block";
+
+      // Check if this is a semantic section navigation command
+      const sectionMatch = questionLower.match(/(?:go to|jump to|find|scroll to)\s+(?:the\s+)?(.+?)\s*(?:section)?$/i);
+      if (sectionMatch && !questionLower.includes("scroll down") && !questionLower.includes("scroll up")) {
+        const sectionName = sectionMatch[1].trim();
+        
+        // Skip if it's a basic navigation command
+        if (!['top', 'bottom', 'footer', 'header', 'up', 'down'].includes(sectionName)) {
+          console.log(`🎯 Semantic navigation to: "${sectionName}"`);
+          
+          // Send semantic navigation command to content script
+          chrome.tabs.sendMessage(tab.id, { action: "scrollToSection", section: sectionName }, (response) => {
+            if (chrome.runtime.lastError) {
+              resultDiv.textContent = "❌ Navigation failed: " + chrome.runtime.lastError.message;
+            } else if (response && response.success) {
+              resultDiv.textContent = `✅ Found and scrolled to ${sectionName} section`;
+              // Clear input after successful command
+              input.value = '';
+              
+              // Add to conversation history
+              addMessage('user', question);
+              addMessage('ai', `🎯 Found and navigated to the ${sectionName} section`, FIXED_MODEL);
+            } else {
+              resultDiv.textContent = `❌ Could not find "${sectionName}" section on this page`;
+              
+              // Add to conversation history
+              addMessage('user', question);
+              addMessage('ai', `🔍 I searched but couldn't find a "${sectionName}" section on this page. Try "scroll down" to explore more content.`, FIXED_MODEL);
+            }
+          });
+          return;
+        }
+      }
+      
+      // Fall back to basic navigation
+      chrome.tabs.sendMessage(tab.id, { action: "NAVIGATE_PAGE", command: question }, (response) => {
+        if (chrome.runtime.lastError) {
+          resultDiv.textContent = "❌ Navigation failed: " + chrome.runtime.lastError.message;
+        } else {
+          resultDiv.textContent = `✅ ${question}`;
+          // Clear input after successful command
+          input.value = '';
+          
+          // Add to conversation history
+          addMessage('user', question);
+          addMessage('ai', `🧭 Navigated: ${question}`, FIXED_MODEL);
+        }
+      });
+      
+    } catch (error) {
+      console.error("Navigation error:", error);
+      resultDiv.textContent = "❌ Navigation failed: " + error.message;
+    }
     return;
   }
 
