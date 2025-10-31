@@ -31,10 +31,16 @@
     "storage",
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "webNavigation"
+  ],
+  "optional_permissions": [
+    "audioCapture"
   ],
   "host_permissions": [
     "https://api.vynceai.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
     "https://*/*",
     "http://*/*"
   ],

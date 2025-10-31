@@ -34,9 +34,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 /**
  * Get context information from the current page
+ * Enhanced with snippet for memory system
  */
 function handleGetPageContext(sendResponse) {
   try {
+    const textContent = getPageTextSummary();
+    const snippet = textContent ? textContent.slice(0, 500) : '';
+    
     const context = {
       url: window.location.href,
       title: document.title,
@@ -49,13 +53,16 @@ function handleGetPageContext(sendResponse) {
       // Selected text
       selectedText: window.getSelection().toString().trim(),
       
+      // Snippet for memory context (first 500 chars)
+      snippet: snippet,
+      
       // Page structure
       headings: getHeadings(),
       links: getLinks(),
       images: getImages(),
       
       // Page content summary
-      textContent: getPageTextSummary(),
+      textContent: textContent,
       
       // Forms on page
       forms: getForms(),
