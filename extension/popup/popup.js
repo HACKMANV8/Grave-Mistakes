@@ -24,6 +24,11 @@ let statusDot;
 let summarizeBtn;
 let analyzeBtn;
 
+// Q&A elements
+let qaInput;
+let qaBtn;
+let qaResult;
+
 // Mode Elements
 let chatModeBtn;
 let commandModeBtn;
@@ -71,6 +76,11 @@ function init() {
   // Quick action buttons
   summarizeBtn = document.getElementById('summarize-btn');
   analyzeBtn = document.getElementById('analyze-btn');
+  
+  // Q&A elements
+  qaInput = document.getElementById('qa-input');
+  qaBtn = document.getElementById('qa-btn');
+  qaResult = document.getElementById('qa-result');
   
   // Mode Elements
   chatModeBtn = document.getElementById('chat-mode-btn');
@@ -121,6 +131,18 @@ function setupEventListeners() {
   }
   if (analyzeBtn) {
     analyzeBtn.addEventListener('click', handleAnalyzePage);
+  }
+  
+  // Q&A functionality
+  if (qaBtn) {
+    qaBtn.addEventListener('click', handleQuestionOnPage);
+  }
+  if (qaInput) {
+    qaInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleQuestionOnPage();
+      }
+    });
   }
   
   // Memory button
@@ -1342,6 +1364,128 @@ ${pageData.fullText ? pageData.fullText.substring(0, 3000) : 'No text content fo
   } finally {
     setProcessingState(false);
     setSafeButtonState(analyzeBtn, false, 'loading');
+  }
+}
+
+/**
+ * Handle Q&A about current page
+ */
+async function handleQuestionOnPage() {
+  // Get elements fresh each time
+  const input = document.getElementById("qa-input");
+  const button = document.getElementById("qa-btn");
+  const resultDiv = document.getElementById("qa-result");
+  
+  if (!input || !resultDiv) {
+    console.error("Q&A elements not found");
+    return;
+  }
+
+  const question = input.value.trim();
+  
+  if (!question) {
+    resultDiv.textContent = "❗ Please enter a question.";
+    resultDiv.style.display = "block";
+    return;
+  }
+
+  // Set loading state
+  if (button) {
+    button.disabled = true;
+    if (button.classList) button.classList.add("loading");
+  }
+  
+  resultDiv.textContent = "⏳ Analyzing page...";
+  resultDiv.style.display = "block";
+
+  try {
+    // Get active tab
+    const tabs = await new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
+    if (!tabs || !tabs[0]) throw new Error("No active tab found");
+    const tab = tabs[0];
+
+    // Check for restricted pages
+    const forbiddenPrefixes = ["chrome://", "chrome-extension://", "edge://", "about:"];
+    if (forbiddenPrefixes.some(p => tab.url && tab.url.startsWith(p))) {
+      resultDiv.textContent = "❌ Cannot analyze browser internal pages.";
+      return;
+    }
+
+    // Inject content script if needed
+    try {
+      await executeScriptAsync(tab.id, ["content/content.js", "content/page-reader.js"]);
+    } catch (injectErr) {
+      console.warn("Content script injection failed:", injectErr.message);
+    }
+
+    // Extract page content
+    let pageData;
+    try {
+      pageData = await sendMessageToTabAsync(tab.id, { action: "summarizePage" });
+    } catch (msgErr) {
+      console.error("Messaging error:", msgErr.message);
+      resultDiv.textContent = "❌ Could not extract page content: " + msgErr.message;
+      return;
+    }
+
+    if (!pageData || !pageData.content) {
+      resultDiv.textContent = "⚠️ Couldn't extract readable content from this page.";
+      return;
+    }
+
+    // Prepare the prompt
+    const prompt = `You are a helpful assistant. Answer the following question ONLY based on the provided webpage content. If the answer cannot be found in the content, say so clearly.
+
+Webpage Content:
+Title: ${pageData.title || 'Unknown'}
+URL: ${pageData.url || tab.url}
+Content: ${pageData.content.slice(0, 8000)}
+
+Question: ${question}
+
+Instructions:
+- Answer based only on the webpage content provided
+- Be concise but informative
+- If the information isn't in the content, say "I cannot find that information in the current page content"
+- Quote relevant parts of the content when helpful`;
+
+    // Send to backend for processing
+    const response = await chrome.runtime.sendMessage({
+      type: 'SEND_PROMPT',
+      payload: {
+        model: FIXED_MODEL,
+        prompt: prompt,
+        context: {
+          url: pageData.url || tab.url,
+          title: pageData.title || tab.title,
+          pageContent: pageData.content
+        }
+      }
+    });
+
+    if (response && response.success) {
+      const answer = response.data?.response || response.text || response.response || "No response from AI.";
+      resultDiv.textContent = answer;
+      
+      // Add to conversation history for context
+      addMessage('user', question);
+      addMessage('ai', `🔍 **Page Q&A**\n\n${answer}`, FIXED_MODEL);
+      
+      // Clear input
+      input.value = '';
+    } else {
+      resultDiv.textContent = "❌ Error getting response from AI service.";
+    }
+
+  } catch (err) {
+    console.error("Error in Q&A:", err);
+    resultDiv.textContent = "❌ Failed to process question: " + err.message;
+  } finally {
+    // Restore button state
+    if (button) {
+      button.disabled = false;
+      if (button.classList) button.classList.remove("loading");
+    }
   }
 }
 
