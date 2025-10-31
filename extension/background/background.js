@@ -184,6 +184,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleGetAvailableModels(sendResponse);
       return true;
       
+    case 'OPEN_SITE':
+      handleOpenSite(request.url, sendResponse);
+      return true;
+      
     default:
       console.warn('Unknown message type:', request.type);
       sendResponse({ success: false, error: 'Unknown message type' });
@@ -345,6 +349,45 @@ async function handleSaveSettings(payload, sendResponse) {
     sendResponse({
       success: false,
       error: error.message
+    });
+  }
+}
+
+/**
+ * Handle opening a new site in a new tab
+ */
+async function handleOpenSite(url, sendResponse) {
+  try {
+    console.log('🌐 Opening new tab:', url);
+    
+    // Validate URL format
+    if (!url || typeof url !== 'string') {
+      throw new Error('Invalid URL provided');
+    }
+    
+    // Ensure URL has protocol
+    let validUrl = url;
+    if (!validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
+      validUrl = 'https://' + validUrl;
+    }
+    
+    // Create new tab
+    const newTab = await chrome.tabs.create({ url: validUrl });
+    
+    sendResponse({
+      success: true,
+      message: `Opened ${validUrl} in new tab`,
+      data: {
+        tabId: newTab.id,
+        url: validUrl
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error opening site:', error);
+    sendResponse({
+      success: false,
+      error: error.message || 'Failed to open site'
     });
   }
 }
