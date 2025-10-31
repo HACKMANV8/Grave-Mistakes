@@ -6,28 +6,33 @@
 
 import { formatResponse, sanitizeInput, getCurrentTimestamp } from '../utils/helpers.js';
 
-// DOM Elements
-const chatContainer = document.getElementById('chat-container');
-const userInput = document.getElementById('user-input');
-const sendBtn = document.getElementById('send-btn');
-const voiceBtn = document.getElementById('voice-btn');
-const voiceIndicator = document.getElementById('voice-indicator');
-const voiceStatusText = document.getElementById('voice-status-text');
-const clearBtn = document.getElementById('clear-btn');
-const settingsBtn = document.getElementById('settings-btn');
-const modelSelect = document.getElementById('model-select');
-const statusText = document.querySelector('.status-text');
-const statusDot = document.querySelector('.status-dot');
+// DOM Elements - will be initialized after DOM loads
+let chatContainer;
+let userInput;
+let sendBtn;
+let voiceBtn;
+let voiceIndicator;
+let voiceStatusText;
+let clearBtn;
+let memoryBtn;
+let settingsBtn;
+let modelSelect;
+let statusText;
+let statusDot;
+
+// Quick action buttons
+let summarizeBtn;
+let analyzeBtn;
 
 // Mode Elements
-const chatModeBtn = document.getElementById('chat-mode-btn');
-const commandModeBtn = document.getElementById('command-mode-btn');
+let chatModeBtn;
+let commandModeBtn;
 
 // Memory Elements
-const memorySection = document.getElementById('memory-section');
-const memoryList = document.getElementById('memory-list');
-const memoryStats = document.getElementById('memory-stats');
-const closeMemoryBtn = document.getElementById('close-memory-btn');
+let memorySection;
+let memoryList;
+let memoryStats;
+let closeMemoryBtn;
 
 // State
 let conversationHistory = [];
@@ -47,16 +52,53 @@ const MAX_MEMORY_ITEMS = 20;
  * Initialize the popup
  */
 function init() {
+  console.log('Initializing popup...');
+  
+  // Initialize all DOM elements after DOM is loaded
+  chatContainer = document.getElementById('chat-container');
+  userInput = document.getElementById('user-input');
+  sendBtn = document.getElementById('send-btn');
+  voiceBtn = document.getElementById('voice-btn');
+  voiceIndicator = document.getElementById('voice-indicator');
+  voiceStatusText = document.getElementById('voice-status-text');
+  clearBtn = document.getElementById('clear-btn');
+  memoryBtn = document.getElementById('memory-btn');
+  settingsBtn = document.getElementById('settings-btn');
+  modelSelect = document.getElementById('model-select');
+  statusText = document.querySelector('.status-text');
+  statusDot = document.querySelector('.status-dot');
+  
+  // Quick action buttons
+  summarizeBtn = document.getElementById('summarize-btn');
+  analyzeBtn = document.getElementById('analyze-btn');
+  
+  // Mode Elements
+  chatModeBtn = document.getElementById('chat-mode-btn');
+  commandModeBtn = document.getElementById('command-mode-btn');
+  
+  // Memory Elements
+  memorySection = document.getElementById('memory-section');
+  memoryList = document.getElementById('memory-list');
+  memoryStats = document.getElementById('memory-stats');
+  closeMemoryBtn = document.getElementById('close-memory-btn');
+  
+  console.log('summarizeBtn:', summarizeBtn);
+  console.log('analyzeBtn:', analyzeBtn);
+  
   loadConversationHistory();
   // Set fixed model
-  modelSelect.value = FIXED_MODEL;
+  if (modelSelect) {
+    modelSelect.value = FIXED_MODEL;
+  }
   setupEventListeners();
   initVoiceRecognition();
   updateStatus('ready');
   updateMemoryBadge();
   
   // Auto-focus input
-  userInput.focus();
+  if (userInput) {
+    userInput.focus();
+  }
 }
 
 /**
@@ -64,43 +106,77 @@ function init() {
  */
 function setupEventListeners() {
   // Send message on button click
-  sendBtn.addEventListener('click', handleSendMessage);
+  if (sendBtn) {
+    sendBtn.addEventListener('click', handleSendMessage);
+  }
   
   // Voice input
-  voiceBtn.addEventListener('click', toggleVoiceRecognition);
+  if (voiceBtn) {
+    voiceBtn.addEventListener('click', toggleVoiceRecognition);
+  }
+  
+  // Quick actions
+  if (summarizeBtn) {
+    summarizeBtn.addEventListener('click', handleSummarizePage);
+  }
+  if (analyzeBtn) {
+    analyzeBtn.addEventListener('click', handleAnalyzePage);
+  }
+  
+  // Memory button
+  if (memoryBtn) {
+    memoryBtn.addEventListener('click', handleShowMemory);
+  }
+  
+  // Close memory button
+  if (closeMemoryBtn) {
+    closeMemoryBtn.addEventListener('click', handleCloseMemory);
+  }
   
   // Mode switching
-  chatModeBtn.addEventListener('click', () => switchMode('chat'));
-  commandModeBtn.addEventListener('click', () => switchMode('command'));
+  if (chatModeBtn) {
+    chatModeBtn.addEventListener('click', () => switchMode('chat'));
+  }
+  if (commandModeBtn) {
+    commandModeBtn.addEventListener('click', () => switchMode('command'));
+  }
   
   // Send message on Enter (Shift+Enter for new line)
-  userInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+  if (userInput) {
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+      
+      // Ctrl/Cmd + Space to activate voice input
+      if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        toggleVoiceRecognition();
+      }
+    });
     
-    // Ctrl/Cmd + Space to activate voice input
-    if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      toggleVoiceRecognition();
-    }
-  });
-  
-  // Auto-resize textarea
-  userInput.addEventListener('input', autoResizeTextarea);
+    // Auto-resize textarea
+    userInput.addEventListener('input', autoResizeTextarea);
+  }
   
   // Clear conversation
-  clearBtn.addEventListener('click', handleClearConversation);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', handleClearConversation);
+  }
   
   // Settings (placeholder for now)
-  settingsBtn.addEventListener('click', handleSettings);
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', handleSettings);
+  }
   
   // Save selected model
-  modelSelect.addEventListener('change', () => {
-    // Model is fixed, but keep listener for compatibility
-    modelSelect.value = FIXED_MODEL;
-  });
+  if (modelSelect) {
+    modelSelect.addEventListener('change', () => {
+      // Model is fixed, but keep listener for compatibility
+      modelSelect.value = FIXED_MODEL;
+    });
+  }
 }
 
 // ============================================
@@ -432,6 +508,11 @@ async function handleCommand(command) {
  * Add a message to the chat container
  */
 function addMessage(sender, content, model = null) {
+  if (!chatContainer) {
+    console.error('chatContainer is null, cannot add message');
+    return;
+  }
+  
   // Remove welcome message if exists
   const welcomeMsg = chatContainer.querySelector('.welcome-message');
   if (welcomeMsg) {
@@ -473,29 +554,43 @@ function addMessage(sender, content, model = null) {
  */
 function addLoadingMessage() {
   const loadingId = `loading-${Date.now()}`;
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'message ai-message';
-  loadingDiv.id = loadingId;
   
-  loadingDiv.innerHTML = `
-    <div class="message-header">
-      <div class="message-avatar">V</div>
-      <span class="message-sender">VynceAI</span>
-    </div>
-    <div class="loading-message">
-      <span>Thinking</span>
-      <div class="loading-dots">
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
+  // Re-query chatContainer in case it was lost
+  const container = chatContainer || document.getElementById('chat-container');
+  
+  if (!container) {
+    console.error('Cannot find chat container, skipping loading message');
+    return loadingId;
+  }
+  
+  try {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message ai-message';
+    loadingDiv.id = loadingId;
+    
+    loadingDiv.innerHTML = `
+      <div class="message-header">
+        <div class="message-avatar">V</div>
+        <span class="message-sender">VynceAI</span>
       </div>
-    </div>
-  `;
-  
-  chatContainer.appendChild(loadingDiv);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-  
-  return loadingId;
+      <div class="loading-message">
+        <span>Thinking</span>
+        <div class="loading-dots">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+      </div>
+    `;
+    
+    container.appendChild(loadingDiv);
+    container.scrollTop = container.scrollHeight;
+    
+    return loadingId;
+  } catch (error) {
+    console.error('Error adding loading message:', error);
+    return loadingId;
+  }
 }
 
 /**
@@ -512,6 +607,12 @@ function removeLoadingMessage(loadingId) {
  * Show error message
  */
 function showError(message) {
+  if (!chatContainer) {
+    console.error('chatContainer is null, cannot show error:', message);
+    alert(message); // Fallback to alert if chatContainer is not available
+    return;
+  }
+  
   const errorDiv = document.createElement('div');
   errorDiv.className = 'error-message';
   errorDiv.innerHTML = `
@@ -564,13 +665,77 @@ function autoResizeTextarea() {
 }
 
 /**
+ * Safely set button state
+ */
+function setSafeButtonState(button, disabled, className = null) {
+  if (!button) {
+    console.warn('Button element is null/undefined in setSafeButtonState');
+    return;
+  }
+  
+  try {
+    // Ensure the button has the disabled property
+    if (typeof button.disabled !== 'undefined') {
+      button.disabled = disabled;
+    }
+    
+    // Safely handle className/classList operations
+    if (className && button.classList) {
+      if (disabled) {
+        button.classList.add(className);
+      } else {
+        button.classList.remove(className);
+      }
+    } else if (className && typeof button.className === 'string') {
+      // Fallback to className property
+      const classNames = button.className.split(' ');
+      if (disabled && !classNames.includes(className)) {
+        button.className = button.className + ' ' + className;
+      } else if (!disabled) {
+        button.className = classNames.filter(c => c !== className).join(' ');
+      }
+    }
+  } catch (error) {
+    console.error('Error setting button state:', error, {
+      button,
+      disabled,
+      className,
+      hasClassList: !!button?.classList,
+      hasClassName: typeof button?.className
+    });
+  }
+}
+
+/**
  * Set processing state
  */
 function setProcessingState(processing) {
   isProcessing = processing;
-  sendBtn.disabled = processing;
-  userInput.disabled = processing;
+  setSafeButtonState(sendBtn, processing);
+  setSafeButtonState(userInput, processing);
   updateStatus(processing ? 'processing' : 'ready');
+}
+
+// Helper: wrap chrome.scripting.executeScript with Promise
+function executeScriptAsync(tabId, files) {
+  return new Promise((resolve, reject) => {
+    chrome.scripting.executeScript({ target: { tabId }, files }, (results) => {
+      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      resolve(results);
+    });
+  });
+}
+
+// Helper: send message to content script and wait for response
+function sendMessageToTabAsync(tabId, message) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        return reject(new Error(chrome.runtime.lastError.message));
+      }
+      resolve(response);
+    });
+  });
 }
 
 /**
@@ -610,6 +775,14 @@ async function getPageContext() {
     const restrictedPrefixes = ['chrome://', 'chrome-extension://', 'about:', 'edge://'];
     if (restrictedPrefixes.some(prefix => tab.url?.startsWith(prefix))) {
       console.log('Skipping page context - restricted page:', tab.url);
+      return null;
+    }
+    
+    // Try to ensure content script is injected (but don't fail if it's not)
+    try {
+      await ensureContentScriptInjected(tab.id);
+    } catch (error) {
+      console.debug('Could not inject content script:', error.message);
       return null;
     }
     
@@ -819,6 +992,11 @@ async function handleClearMemory() {
 
 async function updateMemoryBadge() {
   try {
+    if (!memoryBtn) {
+      console.debug('Memory button not found, skipping badge update');
+      return;
+    }
+    
     const stats = await getMemoryStats();
     if (stats.count > 0) {
       memoryBtn.setAttribute('data-count', stats.count);
@@ -852,6 +1030,354 @@ function showSuccess(message) {
   
   chatContainer.insertBefore(successDiv, chatContainer.firstChild);
   setTimeout(() => successDiv.remove(), 3000);
+}
+
+// ============================================
+// PAGE SUMMARIZATION & ANALYSIS
+// ============================================
+
+/**
+ * Ensure content script is injected before sending messages
+ * This fixes "Could not establish connection" errors
+ */
+async function ensureContentScriptInjected(tabId) {
+  try {
+    // First, try to ping the existing content script
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+    if (response && response.success) {
+      return true; // Content script is already active
+    }
+  } catch (error) {
+    // Content script not responding, need to inject it
+    console.log('Content script not found, injecting...');
+  }
+  
+  try {
+    // Inject the content scripts
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content/page-reader.js']
+    });
+    
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: ['content/content.js']
+    });
+    
+    // Wait a bit for scripts to initialize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log('Content scripts injected successfully');
+    return true;
+  } catch (error) {
+    console.error('Error injecting content script:', error);
+    throw new Error('Failed to inject content script. This page may not support extensions.');
+  }
+}
+
+/**
+ * Handle summarize page button click
+ * Extracts page content and asks AI to summarize it
+ */
+async function handleSummarizePage(event) {
+  // query button every time (don't use stale references)
+  const summarizeBtn = document.getElementById("summarize-btn");
+
+  // Defensive guard
+  if (!summarizeBtn) {
+    console.error("summarizeBtn missing in popup DOM");
+    return;
+  }
+
+  try {
+    console.log("handleSummarizePage called");
+    // UI -> set loading state safely
+    summarizeBtn.disabled = true;
+    if (summarizeBtn.classList) summarizeBtn.classList.add("loading");
+    setProcessingState(true);
+
+    // Remove welcome message if exists
+    const chatContainer = document.getElementById('chat-container');
+    if (chatContainer) {
+      const welcomeMsg = chatContainer.querySelector('.welcome-message');
+      if (welcomeMsg) {
+        welcomeMsg.remove();
+      }
+    }
+
+    // Add system message
+    addSystemMessage('📄 Analyzing page content...');
+
+    // get active tab
+    const tabs = await new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
+    if (!tabs || !tabs[0]) throw new Error("No active tab found");
+    const tab = tabs[0];
+
+    // detect pages you cannot inject into
+    const forbiddenPrefixes = ["chrome://", "chrome-extension://", "edge://", "about:"];
+    if (forbiddenPrefixes.some(p => tab.url && tab.url.startsWith(p))) {
+      console.warn("Cannot inject into this page:", tab.url);
+      showError("❌ This page cannot be summarized due to browser restrictions.");
+      return;
+    }
+
+    // inject content script (safe: re-inject if not present)
+    try {
+      await executeScriptAsync(tab.id, ["content/content.js", "content/page-reader.js"]);
+      console.log("Content script injected successfully");
+    } catch (injectErr) {
+      console.error("Injection failed:", injectErr.message);
+      showError("❌ Failed to inject content script: " + injectErr.message);
+      return;
+    }
+
+    // ask content script to extract page text
+    let pageData;
+    try {
+      pageData = await sendMessageToTabAsync(tab.id, { action: "summarizePage" });
+      // pageData expected shape: { title, url, wordCount, content }
+    } catch (msgErr) {
+      console.error("Messaging error:", msgErr.message);
+      showError("❌ Could not get page content: " + msgErr.message);
+      return;
+    }
+
+    if (!pageData || !pageData.content) {
+      console.warn("No content returned from content script", pageData);
+      showError("❌ No readable content found on this page.");
+      return;
+    }
+
+    // Show loading message
+    const loadingId = addLoadingMessage();
+
+    // Create prompt for summarization
+    const prompt = `Please provide a comprehensive summary of the following web page content:
+
+Title: ${pageData.title}
+URL: ${pageData.url}
+Words: ${pageData.wordCount}
+
+Content:
+${pageData.content}
+
+Please summarize the main points, key information, and overall theme of this content in a clear and organized manner.`;
+
+    // Send to AI backend
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SEND_PROMPT',
+        payload: {
+          model: FIXED_MODEL,
+          prompt: prompt,
+          context: {
+            url: pageData.url,
+            title: pageData.title,
+            pageContent: pageData.content
+          }
+        }
+      });
+
+      // Remove loading message
+      removeLoadingMessage(loadingId);
+
+      if (response.success) {
+        const summary = response.data?.response || response.text || response.response;
+        addMessage('ai', `📄 **Page Summary**\n\n${summary}`, FIXED_MODEL);
+        
+        // Store in memory with page info
+        await addToMemory({
+          title: `Summary: ${pageData.title}`,
+          content: summary,
+          url: pageData.url,
+          timestamp: new Date().toISOString(),
+          type: 'summary'
+        });
+        
+        updateMemoryBadge();
+        saveConversation();
+      } else {
+        throw new Error(response.error || 'Invalid response from AI service');
+      }
+    } catch (aiError) {
+      console.error('AI request failed:', aiError);
+      showError(`❌ AI service error: ${aiError.message}`);
+      removeLoadingMessage(loadingId);
+    }
+
+  } catch (err) {
+    console.error("Error summarizing page:", err);
+    showError("❌ Error summarizing: " + err.message);
+  } finally {
+    // Always restore UI state safely
+    const btn = document.getElementById("summarize-btn");
+    if (btn) {
+      btn.disabled = false;
+      if (btn.classList) btn.classList.remove("loading");
+    }
+    setProcessingState(false);
+  }
+}
+
+/**
+ * Handle analyze page button click
+ * Provides detailed analysis of page content
+ */
+async function handleAnalyzePage() {
+  // Re-query button if null (defensive programming)
+  if (!analyzeBtn) {
+    analyzeBtn = document.getElementById('analyze-btn');
+  }
+  
+  // Check if button exists and prevent multiple simultaneous calls
+  if (!analyzeBtn || analyzeBtn.disabled) {
+    console.warn('Analyze button not available or disabled');
+    return;
+  }
+  
+  try {
+    // Show loading state
+    setProcessingState(true);
+    setSafeButtonState(analyzeBtn, true, 'loading');
+    
+    // Remove welcome message if exists
+    if (chatContainer) {
+      const welcomeMsg = chatContainer.querySelector('.welcome-message');
+      if (welcomeMsg) {
+        welcomeMsg.remove();
+      }
+    }
+    
+    // Add system message
+    addSystemMessage('🔍 Performing deep content analysis...');
+    
+    // Get current tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab?.id) {
+      throw new Error('No active tab found');
+    }
+    
+    // Check if it's a restricted page
+    const restrictedPrefixes = ['chrome://', 'chrome-extension://', 'about:', 'edge://'];
+    if (restrictedPrefixes.some(prefix => tab.url?.startsWith(prefix))) {
+      showError('❌ Cannot read content from browser internal pages');
+      setProcessingState(false);
+      setSafeButtonState(analyzeBtn, false, 'loading');
+      return;
+    }
+    
+    // Ensure content script is injected first
+    try {
+      await ensureContentScriptInjected(tab.id);
+    } catch (error) {
+      throw new Error('Cannot access this page. Try reloading the page first.');
+    }
+    
+    // Extract page content using content script
+    const contentResponse = await chrome.tabs.sendMessage(tab.id, {
+      type: 'EXTRACT_PAGE_CONTENT'
+    });
+    
+    if (!contentResponse.success) {
+      throw new Error(contentResponse.error || 'Failed to extract page content');
+    }
+    
+    const pageData = contentResponse.data || contentResponse.content;
+    
+    // Show loading message
+    const loadingId = addLoadingMessage();
+    
+    // Create analysis prompt
+    const prompt = `Please provide a detailed analysis of this webpage. Include:
+
+1. **Content Quality**: Assess the quality, depth, and credibility of the content
+2. **Structure & Organization**: How well is the content organized?
+3. **Key Information**: What are the most valuable insights or data?
+4. **Sentiment & Tone**: What's the overall tone (professional, casual, persuasive, etc.)?
+5. **Readability**: Is the content easy to understand? Reading level?
+6. **Action Items**: Are there any calls-to-action or things the reader should do?
+
+Provide insights that help understand the content better.
+
+Page Details:
+- Title: ${pageData.title || 'Unknown'}
+- URL: ${pageData.url || tab.url}
+- Word Count: ${pageData.wordCount || 'Unknown'}
+- Reading Time: ${pageData.readingTime || 'Unknown'} minutes
+
+Content Preview:
+${pageData.fullText ? pageData.fullText.substring(0, 3000) : 'No text content found'}`;
+    
+    // Send to AI for analysis
+    const response = await chrome.runtime.sendMessage({
+      type: 'SEND_PROMPT',
+      payload: {
+        model: FIXED_MODEL,
+        prompt: prompt,
+        context: {
+          url: pageData.url || tab.url,
+          title: pageData.title || tab.title,
+          pageContent: pageData.fullText
+        }
+      }
+    });
+    
+    // Remove loading message
+    removeLoadingMessage(loadingId);
+    
+    if (response.success) {
+      const analysis = response.data?.response || response.text || response.response;
+      addMessage('ai', `🔍 **Content Analysis**\n\n${analysis}`, FIXED_MODEL);
+      
+      // Save to conversation
+      saveConversation();
+    } else {
+      throw new Error(response.error || 'Failed to generate analysis');
+    }
+    
+  } catch (error) {
+    console.error('Error analyzing page:', error);
+    showError(`Failed to analyze page: ${error.message}`);
+  } finally {
+    setProcessingState(false);
+    setSafeButtonState(analyzeBtn, false, 'loading');
+  }
+}
+
+/**
+ * Add a system message to the chat (for status updates)
+ */
+function addSystemMessage(message) {
+  // Re-query chatContainer in case it was lost
+  const container = chatContainer || document.getElementById('chat-container');
+  
+  if (!container) {
+    console.error('Cannot find chat container, skipping system message:', message);
+    return;
+  }
+  
+  try {
+    const systemDiv = document.createElement('div');
+    systemDiv.className = 'message system-message';
+    systemDiv.style.textAlign = 'center';
+    systemDiv.style.padding = '8px';
+    systemDiv.style.margin = '8px 0';
+    systemDiv.style.background = 'rgba(34, 197, 94, 0.1)';
+    systemDiv.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+    systemDiv.style.borderRadius = '8px';
+    systemDiv.style.fontSize = '13px';
+    systemDiv.style.color = 'var(--green-primary)';
+    systemDiv.textContent = message;
+    
+    container.appendChild(systemDiv);
+    container.scrollTop = container.scrollHeight;
+    
+    // Remove after 3 seconds
+    setTimeout(() => systemDiv.remove(), 3000);
+  } catch (error) {
+    console.error('Error adding system message:', error);
+  }
 }
 
 // Initialize when DOM is ready

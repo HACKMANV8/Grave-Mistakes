@@ -169,6 +169,63 @@ body {
   padding: 10px;
 }
 
+/* Quick Actions Bar */
+.quick-actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.quick-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-action-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--green-primary);
+  color: var(--green-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--green-glow);
+}
+
+.quick-action-btn:active {
+  transform: translateY(0);
+}
+
+.quick-action-btn .action-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.quick-action-btn span {
+  font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .quick-action-btn span {
+    display: none;
+  }
+  
+  .quick-action-btn {
+    padding: 10px;
+  }
+}
+
 /* Chat Container */
 .chat-container {
   flex: 1;
@@ -481,6 +538,44 @@ body {
   background: var(--bg-primary);
   border-color: var(--green-primary);
   color: var(--green-primary);
+}
+
+/* Memory badge */
+.action-btn[data-count]::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--green-primary);
+  color: var(--bg-primary);
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 5px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
+/* Loading state for buttons */
+.quick-action-btn.loading {
+  opacity: 0.7;
+  cursor: wait;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.quick-action-btn.loading .action-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .action-icon {

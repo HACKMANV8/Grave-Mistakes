@@ -53,10 +53,13 @@ Vynce-AI/
 
 ### Extension (Complete)
 - Professional chat interface
+- **🆕 AI Page Reader** - Summarize and analyze any webpage
+- **🆕 Natural Language Q&A** - Ask questions about current page
 - 6 AI model options (GPT-4, Claude, Gemini, etc.)
 - Dark theme with green accents
-- Conversation history
+- Conversation history with memory
 - Page context awareness
+- Voice input support
 - Mock AI responses (testing)
 - Full documentation
 
@@ -128,6 +131,8 @@ See `extension/SETUP.md` for detailed instructions.
 
 - **Website**: See `website/client/README.md`
 - **Extension**: See `extension/README.md` and `extension/SETUP.md`
+- **Page Reader Feature**: See `FEATURE_PAGE_READER.md` 📄
+- **Quick Start Guide**: See `QUICKSTART_PAGE_READER.md` 🚀
 - **Build Summary**: See `extension/BUILD_SUMMARY.md`
 
 ## 📧 Contact

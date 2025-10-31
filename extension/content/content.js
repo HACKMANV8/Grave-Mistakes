@@ -10,8 +10,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request.type);
   
   switch (request.type) {
+    case 'PING':
+      // Health check to verify content script is active
+      sendResponse({ success: true, message: 'Content script is active' });
+      return true;
+      
     case 'GET_PAGE_CONTEXT':
       handleGetPageContext(sendResponse);
+      return true;
+      
+    case 'EXTRACT_PAGE_CONTENT':
+      handleExtractPageContent(sendResponse);
+      return true;
+      
+    case 'GENERATE_SUMMARY':
+      handleGenerateSummary(sendResponse);
       return true;
       
     case 'EXECUTE_ACTION':
@@ -27,6 +40,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
       
     default:
+      // Handle new summarizePage action for backward compatibility
+      if (request && request.action === "summarizePage") {
+        try {
+          const title = document.title || "";
+          const url = location.href;
+          const content = extractReadableText();
+          const wordCount = content ? content.split(/\s+/).length : 0;
+          sendResponse({ title, url, wordCount, content });
+        } catch (err) {
+          console.error("content.js error:", err);
+          sendResponse({ error: err.message });
+        }
+        return true;
+      }
+      
       console.warn('Unknown message type:', request.type);
       sendResponse({ success: false, error: 'Unknown message type' });
   }
@@ -78,6 +106,96 @@ function handleGetPageContext(sendResponse) {
     
   } catch (error) {
     console.error('Error getting page context:', error);
+    sendResponse({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Extract full page content using the page reader module
+ */
+function handleExtractPageContent(sendResponse) {
+  try {
+    // Use advanced page reader if available
+    if (typeof window.VyncePageReader !== 'undefined') {
+      const result = window.VyncePageReader.extractPageContent();
+      
+      // Transform to expected format
+      if (result.success) {
+        sendResponse({
+          success: true,
+          data: {
+            fullText: result.content.fullText,
+            wordCount: result.content.wordCount,
+            readingTime: result.content.readingTime,
+            url: result.content.url,
+            title: result.content.title,
+            metadata: result.content.metadata,
+            structured: result.content.structured
+          }
+        });
+      } else {
+        throw new Error(result.error || 'Failed to extract content');
+      }
+      return;
+    }
+    
+    // Fallback to basic extraction if page reader not loaded
+    console.warn('Page reader not loaded, using fallback extraction');
+    const textContent = getPageTextSummary();
+    const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
+    const readingTime = Math.ceil(wordCount / 200); // Average reading speed
+    
+    sendResponse({
+      success: true,
+      data: {
+        fullText: textContent,
+        wordCount: wordCount,
+        readingTime: readingTime,
+        url: window.location.href,
+        title: document.title
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error extracting page content:', error);
+    sendResponse({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
+ * Generate a quick summary of the page
+ */
+function handleGenerateSummary(sendResponse) {
+  try {
+    // Check if page reader module is available
+    if (typeof window.VyncePageReader === 'undefined') {
+      // Fallback to basic summary
+      const textContent = getPageTextSummary();
+      const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
+      const summary = `📄 **${document.title}**\n\n${textContent.substring(0, 300)}...\n\n📊 ${wordCount} words`;
+      
+      sendResponse({
+        success: true,
+        data: { summary }
+      });
+      return;
+    }
+    
+    // Use advanced summary generation
+    const summary = window.VyncePageReader.generateQuickSummary();
+    sendResponse({
+      success: true,
+      data: { summary }
+    });
+    
+  } catch (error) {
+    console.error('Error generating summary:', error);
     sendResponse({
       success: false,
       error: error.message
@@ -194,6 +312,25 @@ function handleExtractText(selector, sendResponse) {
 }
 
 // ===== Helper Functions =====
+
+/**
+ * Extract readable text (robust version)
+ */
+function extractReadableText() {
+  // Prefer <article>, then main, then fallback to body
+  const selectors = ["article", "main", "[role='main']"];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el && el.innerText && el.innerText.trim().length > 100) {
+      return el.innerText.trim();
+    }
+  }
+  // fallback: body text, but trim navigation and footer by heuristics
+  let text = document.body ? document.body.innerText : "";
+  if (!text) return "";
+  text = text.replace(/\s{2,}/g, " ").trim();
+  return text;
+}
 
 /**
  * Get meta tag content

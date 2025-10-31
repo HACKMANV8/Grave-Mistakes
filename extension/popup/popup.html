@@ -48,6 +48,22 @@
       </div>
     </div>
 
+    <!-- Quick Actions Bar -->
+    <div class="quick-actions">
+      <button id="summarize-btn" class="quick-action-btn" title="Summarize this page">
+        <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <span>Summarize Page</span>
+      </button>
+      <button id="analyze-btn" class="quick-action-btn" title="Analyze page content">
+        <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+        </svg>
+        <span>Analyze Content</span>
+      </button>
+    </div>
+
     <!-- Memory Section (Hidden by default) -->
     <div class="memory-section" id="memory-section" style="display: none;">
       <div class="memory-header">
@@ -69,9 +85,9 @@
         <h3>Welcome to VynceAI</h3>
         <p>Your intelligent AI browser assistant. Ask me anything about this webpage or let me help you with web tasks!</p>
         <div class="welcome-tips">
-          <div class="tip">💬 Type your message</div>
-          <div class="tip">🎤 Click mic or press <kbd>Ctrl+Space</kbd> for voice</div>
-          <div class="tip">✨ I remember our conversation!</div>
+          <div class="tip">� Click "Summarize Page" to get a quick overview</div>
+          <div class="tip">💬 Ask questions about the current page</div>
+          <div class="tip">✨ I understand context and remember our conversation!</div>
         </div>
       </div>
     </div>
@@ -110,6 +126,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
           </svg>
           Clear
+        </button>
+        <button id="memory-btn" class="action-btn" title="View Memory">
+          <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Memory
         </button>
         <button id="settings-btn" class="action-btn" title="Settings">
           <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
