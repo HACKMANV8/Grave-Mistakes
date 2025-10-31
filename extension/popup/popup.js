@@ -45,6 +45,7 @@ let isProcessing = false;
 let currentMode = 'chat'; // 'chat' or 'command'
 let recognition = null;
 let isListening = false;
+let autoSpeakEnabled = false; // Auto-speak new AI responses
 
 // Fixed model configuration
 const FIXED_MODEL = 'gemini-2.5-flash'; // Using Gemini 2.5 Flash as the only model
@@ -52,6 +53,168 @@ const FIXED_MODEL = 'gemini-2.5-flash'; // Using Gemini 2.5 Flash as the only mo
 // Memory Constants
 const MEMORY_KEY = 'vynceai_memory';
 const MAX_MEMORY_ITEMS = 20;
+
+// === TEXT-TO-SPEECH (TTS) HELPER ===
+let currentSpeakButton = null;
+let availableVoices = [];
+
+// Preload voices for smoother playback
+window.speechSynthesis.onvoiceschanged = () => {
+  availableVoices = window.speechSynthesis.getVoices();
+  console.log('🎙️ Available voices loaded:', availableVoices.length);
+};
+
+function getOptimalVoice() {
+  const voices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
+  
+  // Priority order for natural-sounding voices
+  const preferredVoices = [
+    // Google voices (best quality)
+    'Google US English',
+    'Google UK English Female',
+    'Google UK English Male',
+    
+    // Microsoft voices (Windows)
+    'Microsoft Aria Online (Natural)',
+    'Microsoft Jenny Online (Natural)',
+    'Microsoft Guy Online (Natural)',
+    'Microsoft Aria',
+    'Microsoft Zira',
+    
+    // Apple voices (macOS)
+    'Samantha',
+    'Alex',
+    'Victoria',
+    'Karen',
+    
+    // Fallback natural voices
+    'Allison',
+    'Ava',
+    'Susan',
+    'Veena'
+  ];
+  
+  // Find the best available voice
+  for (const preferredName of preferredVoices) {
+    const voice = voices.find(v => v.name.includes(preferredName));
+    if (voice) {
+      console.log('🎙️ Selected voice:', voice.name);
+      return voice;
+    }
+  }
+  
+  // Fallback: any English voice
+  const englishVoice = voices.find(v => v.lang.startsWith('en'));
+  if (englishVoice) {
+    console.log('🎙️ Using English fallback:', englishVoice.name);
+    return englishVoice;
+  }
+  
+  // Last resort: first available voice
+  console.log('🎙️ Using default voice:', voices[0]?.name || 'None');
+  return voices[0] || null;
+}
+
+function speakText(text, buttonElement = null) {
+  if (!text) return;
+  
+  // Stop any ongoing speech first
+  speechSynthesis.cancel();
+  
+  // Reset previous button
+  if (currentSpeakButton) {
+    currentSpeakButton.innerHTML = '🔊';
+    currentSpeakButton.disabled = false;
+  }
+  
+  // Clean up the text for better speech
+  const cleanText = text
+    .replace(/\*\*(.*?)\*\*/g, '$1') // Remove markdown bold
+    .replace(/\*(.*?)\*/g, '$1') // Remove markdown italic
+    .replace(/#{1,6}\s/g, '') // Remove markdown headers
+    .replace(/📄|🔍|🌐|🧭|✅|❌|⏳|📊|🎯|🤖|✨/g, '') // Remove emojis
+    .replace(/\n+/g, '. ') // Replace line breaks with periods
+    .replace(/\s+/g, ' ') // Clean up multiple spaces
+    .trim();
+  
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  
+  // Use optimal voice
+  const selectedVoice = getOptimalVoice();
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+  }
+  
+  // Natural speech settings for assistant-like voice
+  utterance.rate = 1.0;     // Natural speaking speed
+  utterance.pitch = 1.0;    // Balanced tone
+  utterance.volume = 1.0;   // Full volume
+  utterance.lang = 'en-US'; // Language
+  
+  // Update button state
+  if (buttonElement) {
+    currentSpeakButton = buttonElement;
+    buttonElement.innerHTML = '🔇';
+    buttonElement.title = 'Stop speaking';
+    buttonElement.style.background = 'rgba(239, 68, 68, 0.1)';
+    buttonElement.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+    buttonElement.style.color = '#ef4444';
+  }
+  
+  // Handle speech events
+  utterance.onstart = () => {
+    console.log('🔊 Started speaking with voice:', selectedVoice?.name || 'default');
+  };
+  
+  utterance.onend = () => {
+    console.log('🔊 Finished speaking');
+    if (currentSpeakButton) {
+      currentSpeakButton.innerHTML = '🔊';
+      currentSpeakButton.title = 'Listen to this response';
+      currentSpeakButton.style.background = 'rgba(34, 197, 94, 0.1)';
+      currentSpeakButton.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+      currentSpeakButton.style.color = 'var(--green-primary)';
+      currentSpeakButton = null;
+    }
+  };
+  
+  utterance.onerror = (event) => {
+    console.error('🔊 Speech error:', event.error);
+    if (currentSpeakButton) {
+      currentSpeakButton.innerHTML = '🔊';
+      currentSpeakButton.title = 'Listen to this response';
+      currentSpeakButton.style.background = 'rgba(34, 197, 94, 0.1)';
+      currentSpeakButton.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+      currentSpeakButton.style.color = 'var(--green-primary)';
+      currentSpeakButton = null;
+    }
+  };
+  
+  speechSynthesis.speak(utterance);
+  console.log('🔊 Speaking:', cleanText.substring(0, 50) + '...');
+}
+
+function stopSpeaking() {
+  speechSynthesis.cancel();
+  if (currentSpeakButton) {
+    currentSpeakButton.innerHTML = '🔊';
+    currentSpeakButton.title = 'Listen to this response';
+    currentSpeakButton.style.background = 'rgba(34, 197, 94, 0.1)';
+    currentSpeakButton.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+    currentSpeakButton.style.color = 'var(--green-primary)';
+    currentSpeakButton = null;
+  }
+}
+
+// Debug function to list available voices
+function listAvailableVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  console.log('🎙️ Available voices:');
+  voices.forEach((voice, index) => {
+    console.log(`${index}: ${voice.name} (${voice.lang}) - ${voice.localService ? 'Local' : 'Remote'}`);
+  });
+  return voices;
+}
 
 /**
  * Initialize the popup
@@ -556,6 +719,34 @@ function addMessage(sender, content, model = null) {
     </div>
     <div class="message-content">${formatResponse(content)}</div>
   `;
+  
+  // Add TTS button for AI responses
+  if (sender === 'ai') {
+    const messageActions = document.createElement('div');
+    messageActions.className = 'message-actions';
+    
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'speak-btn';
+    speakBtn.innerHTML = '🔊';
+    speakBtn.title = 'Listen to this response';
+    speakBtn.onclick = () => {
+      if (speechSynthesis.speaking) {
+        stopSpeaking();
+      } else {
+        speakText(content, speakBtn);
+      }
+    };
+    
+    messageActions.appendChild(speakBtn);
+    messageDiv.appendChild(messageActions);
+    
+    // Auto-speak if enabled (with a small delay for better UX)
+    if (autoSpeakEnabled) {
+      setTimeout(() => {
+        speakText(content, speakBtn);
+      }, 500);
+    }
+  }
   
   chatContainer.appendChild(messageDiv);
   
