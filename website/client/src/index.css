@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+.text-gradient {
+  background: linear-gradient(to right, rgb(34 211 238), rgb(59 130 246), rgb(147 51 234));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glow {
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+}
+
+.card-glow {
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.1);
+}
