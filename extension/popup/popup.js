@@ -29,6 +29,20 @@ let qaInput;
 let qaBtn;
 let qaResult;
 
+// Agent Mode elements and state
+let agentMode;
+let agentVoiceBtn;
+let exitAgentBtn;
+let agentStatusText;
+let agentStatusDot;
+let voiceResponse;
+let responseText;
+let aiCore;
+let audioContext;
+let analyzer;
+let dataArray;
+let isAgentModeActive = false;
+
 // Mode Elements
 let chatModeBtn;
 let commandModeBtn;
@@ -164,6 +178,11 @@ function speakText(text, buttonElement = null) {
   // Handle speech events
   utterance.onstart = () => {
     console.log('🔊 Started speaking with voice:', selectedVoice?.name || 'default');
+    
+    // Activate Agent Mode speaking visuals
+    if (isAgentModeActive) {
+      setAgentSpeaking(true);
+    }
   };
   
   utterance.onend = () => {
@@ -175,6 +194,11 @@ function speakText(text, buttonElement = null) {
       currentSpeakButton.style.borderColor = 'rgba(34, 197, 94, 0.3)';
       currentSpeakButton.style.color = 'var(--green-primary)';
       currentSpeakButton = null;
+    }
+    
+    // Deactivate Agent Mode speaking visuals
+    if (isAgentModeActive) {
+      setAgentSpeaking(false);
     }
   };
   
@@ -255,6 +279,15 @@ function init() {
   memoryStats = document.getElementById('memory-stats');
   closeMemoryBtn = document.getElementById('close-memory-btn');
   
+  // Agent Mode Elements
+  agentMode = document.getElementById('agent-mode');
+  agentVoiceBtn = document.getElementById('agent-voice-btn');
+  exitAgentBtn = document.getElementById('exit-agent-btn');
+  agentStatusText = document.getElementById('agent-status-text');
+  agentStatusDot = document.getElementById('agent-status-dot');
+  voiceResponse = document.getElementById('voice-response');
+  responseText = document.getElementById('response-text');
+  
   console.log('summarizeBtn:', summarizeBtn);
   console.log('analyzeBtn:', analyzeBtn);
   
@@ -265,6 +298,11 @@ function init() {
   }
   setupEventListeners();
   initVoiceRecognition();
+  
+  // Initialize Agent Mode after voice recognition is ready
+  setTimeout(() => {
+    enhanceVoiceRecognitionForAgent();
+  }, 100);
   updateStatus('ready');
   updateMemoryBadge();
   
@@ -294,6 +332,12 @@ function setupEventListeners() {
   }
   if (analyzeBtn) {
     analyzeBtn.addEventListener('click', handleAnalyzePage);
+  }
+  
+  // Agent Mode button
+  const agentModeBtn = document.getElementById('agent-mode-btn');
+  if (agentModeBtn) {
+    agentModeBtn.addEventListener('click', enterAgentMode);
   }
   
   // Q&A functionality
@@ -362,6 +406,36 @@ function setupEventListeners() {
       modelSelect.value = FIXED_MODEL;
     });
   }
+  
+  // Agent Mode Event Listeners
+  if (agentVoiceBtn) {
+    agentVoiceBtn.addEventListener('click', handleAgentVoiceToggle);
+  }
+  
+  if (exitAgentBtn) {
+    exitAgentBtn.addEventListener('click', exitAgentMode);
+  }
+  
+  // Long press on voice button to enter Agent Mode
+  let voicePressTimer;
+  if (voiceBtn) {
+    voiceBtn.addEventListener('mousedown', () => {
+      voicePressTimer = setTimeout(() => {
+        enterAgentMode();
+      }, 1000); // 1 second long press
+    });
+    
+    voiceBtn.addEventListener('mouseup', () => {
+      clearTimeout(voicePressTimer);
+    });
+    
+    voiceBtn.addEventListener('mouseleave', () => {
+      clearTimeout(voicePressTimer);
+    });
+  }
+  
+  // Initialize Agent Mode
+  initializeAgentMode();
 }
 
 // ============================================
@@ -388,7 +462,7 @@ function initVoiceRecognition() {
   recognition.maxAlternatives = 1;
   
   // Set initial tooltip
-  voiceBtn.title = 'Voice input (click to speak, Ctrl+Space)';
+  voiceBtn.title = 'Voice input (click to speak, hold for Agent Mode)';
   
   recognition.onstart = () => {
     isListening = true;
@@ -496,7 +570,7 @@ function toggleVoiceRecognition() {
 function stopVoiceRecognition() {
   isListening = false;
   voiceBtn.classList.remove('listening');
-  voiceBtn.title = 'Voice input (click to speak)';
+  voiceBtn.title = 'Voice input (click to speak, hold for Agent Mode)';
   voiceIndicator.style.display = 'none';
   updateStatus('ready');
 }
@@ -704,8 +778,8 @@ function addMessage(sender, content, model = null) {
     messageActions.appendChild(speakBtn);
     messageDiv.appendChild(messageActions);
     
-    // Auto-speak if enabled (with a small delay for better UX)
-    if (autoSpeakEnabled) {
+    // Auto-speak if enabled OR in Agent Mode (with a small delay for better UX)
+    if (autoSpeakEnabled || isAgentModeActive) {
       setTimeout(() => {
         speakText(content, speakBtn);
       }, 500);
@@ -1618,6 +1692,13 @@ async function handleQuestionOnPage() {
     chrome.runtime.sendMessage({ type: "OPEN_SITE", url: site }, (response) => {
       if (chrome.runtime.lastError) {
         resultDiv.textContent = "❌ Failed to open site: " + chrome.runtime.lastError.message;
+        
+        // Speak error in Agent Mode
+        if (isAgentModeActive) {
+          setTimeout(() => {
+            speakText("Failed to open site: " + chrome.runtime.lastError.message);
+          }, 200);
+        }
       } else {
         resultDiv.textContent = `✅ Opened ${site} in new tab`;
         // Clear input after successful command
@@ -1626,6 +1707,13 @@ async function handleQuestionOnPage() {
         // Add to conversation history
         addMessage('user', question);
         addMessage('ai', `🌐 Opened ${site} in a new tab`, FIXED_MODEL);
+        
+        // Auto-speak success in Agent Mode
+        if (isAgentModeActive) {
+          setTimeout(() => {
+            speakText(`Opened ${site} in new tab`);
+          }, 200);
+        }
       }
     });
     return;
@@ -1678,6 +1766,13 @@ async function handleQuestionOnPage() {
           chrome.tabs.sendMessage(tab.id, { action: "scrollToSection", section: sectionName }, (response) => {
             if (chrome.runtime.lastError) {
               resultDiv.textContent = "❌ Navigation failed: " + chrome.runtime.lastError.message;
+              
+              // Speak error in Agent Mode
+              if (isAgentModeActive) {
+                setTimeout(() => {
+                  speakText("Navigation failed: " + chrome.runtime.lastError.message);
+                }, 200);
+              }
             } else if (response && response.success) {
               resultDiv.textContent = `✅ Found and scrolled to ${sectionName} section`;
               // Clear input after successful command
@@ -1686,12 +1781,26 @@ async function handleQuestionOnPage() {
               // Add to conversation history
               addMessage('user', question);
               addMessage('ai', `🎯 Found and navigated to the ${sectionName} section`, FIXED_MODEL);
+              
+              // Auto-speak success in Agent Mode
+              if (isAgentModeActive) {
+                setTimeout(() => {
+                  speakText(`Found and navigated to the ${sectionName} section`);
+                }, 200);
+              }
             } else {
               resultDiv.textContent = `❌ Could not find "${sectionName}" section on this page`;
               
               // Add to conversation history
               addMessage('user', question);
               addMessage('ai', `🔍 I searched but couldn't find a "${sectionName}" section on this page. Try "scroll down" to explore more content.`, FIXED_MODEL);
+              
+              // Auto-speak in Agent Mode
+              if (isAgentModeActive) {
+                setTimeout(() => {
+                  speakText(`I searched but couldn't find a ${sectionName} section on this page. Try scroll down to explore more content.`);
+                }, 200);
+              }
             }
           });
           return;
@@ -1702,6 +1811,13 @@ async function handleQuestionOnPage() {
       chrome.tabs.sendMessage(tab.id, { action: "NAVIGATE_PAGE", command: question }, (response) => {
         if (chrome.runtime.lastError) {
           resultDiv.textContent = "❌ Navigation failed: " + chrome.runtime.lastError.message;
+          
+          // Speak error in Agent Mode
+          if (isAgentModeActive) {
+            setTimeout(() => {
+              speakText("Navigation failed: " + chrome.runtime.lastError.message);
+            }, 200);
+          }
         } else {
           resultDiv.textContent = `✅ ${question}`;
           // Clear input after successful command
@@ -1710,6 +1826,13 @@ async function handleQuestionOnPage() {
           // Add to conversation history
           addMessage('user', question);
           addMessage('ai', `🧭 Navigated: ${question}`, FIXED_MODEL);
+          
+          // Auto-speak success in Agent Mode
+          if (isAgentModeActive) {
+            setTimeout(() => {
+              speakText(`Navigated: ${question}`);
+            }, 200);
+          }
         }
       });
       
@@ -1802,10 +1925,24 @@ Instructions:
       addMessage('user', question);
       addMessage('ai', `🔍 **Page Q&A**\n\n${answer}`, FIXED_MODEL);
       
+      // Auto-speak in Agent Mode (additional to the addMessage auto-speak)
+      if (isAgentModeActive) {
+        setTimeout(() => {
+          speakText(answer);
+        }, 200);
+      }
+      
       // Clear input
       input.value = '';
     } else {
       resultDiv.textContent = "❌ Error getting response from AI service.";
+      
+      // Speak error in Agent Mode
+      if (isAgentModeActive) {
+        setTimeout(() => {
+          speakText("Error getting response from AI service");
+        }, 200);
+      }
     }
 
   } catch (err) {
@@ -1854,6 +1991,343 @@ function addSystemMessage(message) {
     console.error('Error adding system message:', error);
   }
 }
+
+// ============================================
+// AGENT MODE - Futuristic AI Core Interface
+// ============================================
+
+/**
+ * Initialize Agent Mode
+ */
+function initializeAgentMode() {
+  if (!agentMode) return;
+  
+  const canvas = document.getElementById('ai-core-canvas');
+  if (canvas && window.AICore) {
+    aiCore = new window.AICore(canvas);
+    console.log('AI Core initialized');
+  }
+}
+
+/**
+ * Enter Agent Mode with cinematic transition
+ */
+function enterAgentMode() {
+  if (isAgentModeActive) return;
+  
+  console.log('Entering Agent Mode...');
+  isAgentModeActive = true;
+  
+  // Show Agent Mode overlay
+  agentMode.style.display = 'flex';
+  agentMode.classList.add('entering');
+  
+  // Start AI Core animation
+  if (aiCore) {
+    aiCore.start();
+  }
+  
+  // Update status
+  updateAgentStatus('AI Core Active', 'idle');
+  
+  // Setup audio analysis for microphone input
+  setupAudioAnalysis();
+  
+  // Remove entering class after animation
+  setTimeout(() => {
+    agentMode.classList.remove('entering');
+    agentMode.classList.add('active');
+  }, 1200);
+  
+  // Haptic feedback if available
+  if (navigator.vibrate) {
+    navigator.vibrate([50, 100, 50]);
+  }
+  
+  showSystemMessage('🤖 Agent Mode Activated - AI Core Online');
+}
+
+/**
+ * Exit Agent Mode
+ */
+function exitAgentMode() {
+  if (!isAgentModeActive) return;
+  
+  console.log('Exiting Agent Mode...');
+  
+  agentMode.classList.remove('active');
+  agentMode.classList.add('exiting');
+  
+  // Stop AI Core animation
+  if (aiCore) {
+    aiCore.stop();
+  }
+  
+  // Clean up audio analysis
+  cleanupAudioAnalysis();
+  
+  setTimeout(() => {
+    agentMode.style.display = 'none';
+    agentMode.classList.remove('exiting');
+    isAgentModeActive = false;
+  }, 800);
+  
+  showSystemMessage('👋 Agent Mode Deactivated');
+}
+
+/**
+ * Handle Agent Mode voice toggle
+ */
+function handleAgentVoiceToggle() {
+  if (!isAgentModeActive) return;
+  
+  if (isListening) {
+    // Stop listening
+    recognition.stop();
+    agentVoiceBtn.classList.remove('active');
+    updateAgentStatus('AI Core Active', 'idle');
+    
+    if (aiCore) {
+      aiCore.setListening(false);
+    }
+  } else {
+    // Start listening
+    try {
+      recognition.start();
+      agentVoiceBtn.classList.add('active');
+      updateAgentStatus('Listening...', 'listening');
+      agentMode.classList.add('listening');
+      
+      if (aiCore) {
+        aiCore.setListening(true);
+      }
+    } catch (error) {
+      console.error('Voice recognition error:', error);
+      updateAgentStatus('Voice Error', 'error');
+    }
+  }
+}
+
+/**
+ * Update Agent Mode status
+ */
+function updateAgentStatus(text, state) {
+  if (!agentStatusText || !agentStatusDot) return;
+  
+  agentStatusText.textContent = text;
+  
+  // Remove existing state classes
+  agentMode.classList.remove('listening', 'speaking', 'error');
+  
+  // Add new state class
+  if (state !== 'idle') {
+    agentMode.classList.add(state);
+  }
+}
+
+/**
+ * Setup audio analysis for microphone visualization
+ */
+async function setupAudioAnalysis() {
+  try {
+    // Don't create separate audio stream, just prepare for mock visualization
+    console.log('Audio analysis setup - using mock visualization for Agent Mode');
+    
+    // Start mock audio visualization loop
+    visualizeAudio();
+    
+  } catch (error) {
+    console.error('Audio analysis setup failed:', error);
+  }
+}
+
+/**
+ * Cleanup audio analysis
+ */
+function cleanupAudioAnalysis() {
+  // Clean up any audio context if it exists
+  if (audioContext && audioContext.state !== 'closed') {
+    audioContext.close();
+  }
+  audioContext = null;
+  analyzer = null;
+  dataArray = null;
+}
+
+/**
+ * Visualize audio input with AI Core
+ */
+function visualizeAudio() {
+  if (!aiCore || !isAgentModeActive) return;
+  
+  // Mock audio level based on listening state
+  let normalizedLevel = 0;
+  
+  if (isListening) {
+    // Generate mock audio waves during listening
+    const time = Date.now() * 0.005;
+    normalizedLevel = (Math.sin(time) + Math.sin(time * 2.1) + Math.sin(time * 3.7)) / 6 + 0.5;
+    normalizedLevel = Math.max(0, Math.min(1, normalizedLevel * 0.8));
+    
+    // Update AI Core with mock audio level
+    aiCore.setListening(true, normalizedLevel);
+    
+    // Trigger voice waves on significant audio
+    if (normalizedLevel > 0.3) {
+      aiCore.triggerVoiceWave(normalizedLevel);
+    }
+  } else {
+    aiCore.setListening(false, 0);
+  }
+  
+  // Continue visualization loop
+  requestAnimationFrame(visualizeAudio);
+}
+
+/**
+ * Handle speaking state in Agent Mode
+ */
+function setAgentSpeaking(speaking) {
+  if (!isAgentModeActive || !aiCore) return;
+  
+  if (speaking) {
+    updateAgentStatus('AI Speaking...', 'speaking');
+    aiCore.setSpeaking(true);
+    
+    // Show voice response
+    if (voiceResponse) {
+      voiceResponse.style.display = 'block';
+    }
+    
+    // Trigger speaking pulse effects
+    const pulseInterval = setInterval(() => {
+      if (aiCore && isAgentModeActive) {
+        aiCore.triggerSpeakingPulse();
+      }
+    }, 200);
+    
+    // Store interval for cleanup
+    aiCore.speakingInterval = pulseInterval;
+    
+  } else {
+    updateAgentStatus('AI Core Active', 'idle');
+    aiCore.setSpeaking(false);
+    
+    // Hide voice response
+    if (voiceResponse) {
+      voiceResponse.style.display = 'none';
+    }
+    
+    // Clear speaking pulse interval
+    if (aiCore.speakingInterval) {
+      clearInterval(aiCore.speakingInterval);
+      aiCore.speakingInterval = null;
+    }
+  }
+}
+
+/**
+ * Enhanced voice recognition for Agent Mode
+ */
+function enhanceVoiceRecognitionForAgent() {
+  if (!recognition) return;
+  
+  // Override existing handlers for Agent Mode
+  const originalOnStart = recognition.onstart;
+  const originalOnResult = recognition.onresult;
+  const originalOnEnd = recognition.onend;
+  
+  recognition.onstart = () => {
+    if (isAgentModeActive) {
+      isListening = true;
+      updateAgentStatus('Listening...', 'listening');
+      agentVoiceBtn.classList.add('active');
+      
+      if (aiCore) {
+        aiCore.setListening(true);
+      }
+    } else if (originalOnStart) {
+      originalOnStart();
+    }
+  };
+  
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const confidence = event.results[0][0].confidence;
+    
+    if (isAgentModeActive) {
+      // Show transcript in Agent Mode
+      if (responseText) {
+        responseText.textContent = `You said: "${transcript}"`;
+        voiceResponse.style.display = 'block';
+      }
+      
+      // Send to Q&A section instead of main chat
+      qaInput.value = transcript;
+      setTimeout(() => {
+        handleQuestionOnPage();
+        if (voiceResponse) {
+          voiceResponse.style.display = 'none';
+        }
+      }, 1000);
+      
+    } else if (originalOnResult) {
+      originalOnResult(event);
+    }
+  };
+  
+  recognition.onend = () => {
+    if (isAgentModeActive) {
+      isListening = false;
+      agentVoiceBtn.classList.remove('active');
+      updateAgentStatus('AI Core Active', 'idle');
+      
+      if (aiCore) {
+        aiCore.setListening(false);
+      }
+    } else if (originalOnEnd) {
+      originalOnEnd();
+    }
+  };
+}
+
+/**
+ * Override speak function for Agent Mode
+ */
+const originalSpeakText = window.speakText;
+window.speakText = function(text) {
+  if (isAgentModeActive) {
+    setAgentSpeaking(true);
+    
+    // Show response text in Agent Mode
+    if (responseText) {
+      responseText.textContent = text;
+      voiceResponse.style.display = 'block';
+    }
+    
+    // Call original speak function
+    originalSpeakText(text);
+    
+    // Monitor speech end
+    if (window.speechSynthesis) {
+      const utterance = window.speechSynthesis.speak ? 
+        new SpeechSynthesisUtterance(text) : null;
+      
+      if (utterance) {
+        utterance.onend = () => {
+          setAgentSpeaking(false);
+        };
+      } else {
+        // Fallback: assume speech ends after text length-based delay
+        setTimeout(() => {
+          setAgentSpeaking(false);
+        }, Math.max(2000, text.length * 100));
+      }
+    }
+  } else {
+    originalSpeakText(text);
+  }
+};
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

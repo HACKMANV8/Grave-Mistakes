@@ -62,6 +62,12 @@
         </svg>
         <span>Analyze Content</span>
       </button>
+      <button id="agent-mode-btn" class="quick-action-btn agent-mode-trigger" title="Enter Agent Mode - Futuristic AI Interface">
+        <svg class="action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+        </svg>
+        <span>Agent Mode</span>
+      </button>
     </div>
 
     <!-- Q&A Section -->
@@ -158,6 +164,52 @@
     </div>
   </div>
 
+  <!-- Agent Mode Overlay -->
+  <div id="agent-mode" class="agent-mode" style="display: none;">
+    <div class="agent-background"></div>
+    <div class="agent-container">
+      <!-- AI Core Canvas -->
+      <div class="ai-core-container">
+        <canvas id="ai-core-canvas" class="ai-core-canvas"></canvas>
+        <div class="core-glow"></div>
+        <div class="ambient-particles"></div>
+      </div>
+      
+      <!-- Agent Status -->
+      <div class="agent-status">
+        <div class="status-text" id="agent-status-text">AI Core Active</div>
+        <div class="status-indicator-dot" id="agent-status-dot"></div>
+      </div>
+      
+      <!-- Agent Controls -->
+      <div class="agent-controls">
+        <button id="agent-voice-btn" class="agent-control-btn voice-control" title="Voice interaction">
+          <svg class="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>         </svg>
+          <div class="voice-pulse"></div>
+        </button>
+        <button id="exit-agent-btn" class="agent-control-btn exit-control" title="Exit Agent Mode">
+          <svg class="control-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Voice Response Display -->
+      <div class="voice-response" id="voice-response" style="display: none;">
+        <div class="response-text" id="response-text"></div>
+        <div class="response-waveform">
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+          <span class="wave-bar"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="agent-core.js"></script>
   <script src="popup.js" type="module"></script>
 </body>
 </html>
